@@ -1,207 +1,597 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Whack-A-Rit</title>
-
 <style>
-html,body{
-  margin:0;height:100%;background:#000;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto;
-  -webkit-tap-highlight-color:transparent;
-  overscroll-behavior:none
-}
-body{touch-action:manipulation}
-#app{position:relative;width:100%;height:100%;overflow:hidden}
+  html,body{margin:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  body{touch-action:manipulation}
+  #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
 
-#bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#table{
-  position:absolute;left:50%;top:56%;
-  transform:translate(-50%,-50%);
-  width:min(94vw,900px);
-  opacity:0;transition:.25s
-}
+  #bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  #table{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:min(94vw,900px);opacity:0;transition:.25s;z-index:1}
 
-#hud{
-  position:absolute;left:50%;top:8%;
-  transform:translateX(-50%);
-  background:#00c853;color:#fff;
-  padding:14px 22px;border-radius:18px;
-  font-size:26px;font-weight:900;
-  display:none;z-index:10
-}
+  #hud{
+    position:absolute;left:50%;top:8%;
+    transform:translateX(-50%);
+    background:#00c853;color:#fff;
+    padding:14px 22px;border-radius:18px;
+    font-size:26px;font-weight:900;
+    display:none;z-index:10;
+    box-shadow:0 10px 26px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.18)
+  }
 
-#overlay{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;
-  justify-content:center;align-items:center;
-  gap:12px;background:rgba(0,0,0,.5);z-index:20
-}
-#play{
-  background:#00c853;color:#fff;
-  border:none;border-radius:18px;
-  padding:18px 40px;font-size:22px;font-weight:900
-}
-#msg{color:#fff;font-weight:800}
+  #overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;
+    align-items:center;justify-content:center;z-index:30;
+    background:rgba(0,0,0,.50)
+  }
+  #play{
+    background:#00c853;border:0;color:#fff;border-radius:18px;
+    padding:18px 40px;font-size:22px;font-weight:900;
+    box-shadow:0 10px 26px rgba(0,0,0,.35)
+  }
+  #play[disabled]{opacity:.6}
+  #status{color:#fff;font-weight:900;text-align:center;max-width:560px;line-height:1.25}
+  #status small{display:block;color:rgba(255,255,255,.7);font-weight:800;margin-top:6px}
 
-/* ---------- LEVEL 40 ---------- */
-#dark40{
-  position:absolute;inset:0;
-  background:#000;
-  display:none;z-index:80;
-  align-items:center;justify-content:center
-}
-#dark40 img{
-  width:min(70vw,420px)
-}
+  .hole{position:absolute;width:96px;height:96px;z-index:6}
+  .target{
+    position:absolute;left:0;right:0;margin:auto;bottom:-40px;
+    width:96px;height:96px;border-radius:50%;
+    background:#111;display:flex;align-items:center;justify-content:center;
+    opacity:0;transform:scale(.9);transition:.15s;
+    border:1px solid rgba(255,255,255,.18)
+  }
+  .target.show{opacity:1;transform:scale(1);bottom:0}
+  .target img{width:92px;height:92px;border-radius:50%}
 
-#emojiChaos{
-  position:absolute;inset:0;
-  display:none;z-index:90;
-  background:rgba(0,0,0,.92);
-}
+  #hammer{
+    position:absolute;z-index:999;pointer-events:none;display:none;
+    transform:translate(-50%,-50%) rotate(-35deg);
+    font-size:54px; filter:drop-shadow(0 10px 16px rgba(0,0,0,.45));
+  }
 
-.emoji{
-  position:absolute;
-  font-size:38px;
-  cursor:pointer;
-  user-select:none;
-  animation: jitter 0.6s infinite alternate;
-}
+  /* Level 5 boss */
+  #boss5{
+    position:absolute;inset:0;display:none;z-index:60;
+    background:rgba(0,0,0,.68);align-items:center;justify-content:center;
+  }
+  #boss5 img{
+    width:min(78vw,560px);
+    border-radius:0;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);
+    will-change:transform;
+  }
 
-@keyframes jitter{
-  from{transform:translate(-2px,-2px)}
-  to{transform:translate(2px,2px)}
-}
+  /* Level 30 mercy */
+  #mercy{
+    position:absolute;inset:0;display:none;z-index:70;
+    background:rgba(0,0,0,.78);
+  }
+  #mercyCenter{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    text-align:center;color:#fff;
+  }
+  #mercyCenter img{width:min(70vw,420px)}
+  #mercyText{margin-top:12px;font-size:22px;font-weight:900}
+  #smallRitos{
+    position:absolute;width:72px;height:72px;display:none;cursor:pointer;
+    border-radius:50%; overflow:hidden;
+    box-shadow:0 14px 30px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.2)
+  }
+  #smallRitos img{width:100%;height:100%;border-radius:50%}
+
+  /* Level 40: dark + emoji chaos */
+  #dark40{
+    position:absolute;inset:0;display:none;z-index:80;
+    background:#000;align-items:center;justify-content:center
+  }
+  #dark40 img{width:min(70vw,420px)}
+  #emojiChaos{
+    position:absolute;inset:0;display:none;z-index:90;
+    background:rgba(0,0,0,.92);
+  }
+  .emoji{
+    position:absolute;
+    font-size:38px;
+    cursor:pointer;
+    user-select:none;
+    animation: jitter .55s infinite alternate;
+  }
+  @keyframes jitter{
+    from{transform:translate(-2px,-2px)}
+    to{transform:translate(2px,2px)}
+  }
+
+  .shake{animation:shake .14s}
+  @keyframes shake{
+    0%{transform:translate(0)}
+    25%{transform:translate(-10px,7px)}
+    50%{transform:translate(9px,-7px)}
+    75%{transform:translate(-7px,7px)}
+    100%{transform:translate(0)}
+  }
 </style>
 </head>
-
 <body>
 <div id="app">
+  <img id="bg" src="./bg.png" alt="bg">
+  <img id="table" src="./table.png" alt="table">
 
-<img id="bg" src="./bg.png">
-<img id="table" src="./table.png">
+  <div id="hud">Score: <span id="score">0</span></div>
 
-<div id="hud">Score: <span id="score">0</span></div>
+  <div id="overlay">
+    <button id="play" disabled>Loading…</button>
+    <div id="status">Loading…<small>Repo root: bg.png, table.png, good.png, bad.png, boss.png, mercy.png, level40.png</small></div>
+  </div>
 
-<div id="overlay">
-  <button id="play">Play</button>
-  <div id="msg">Hit Ritos for points. Avoid Tiga 😈</div>
-</div>
+  <div id="boss5"><img id="boss5Img" src="./boss.png" alt="boss5"></div>
 
-<!-- LEVEL 40 DARK IMAGE -->
-<div id="dark40">
-  <img src="./level40.png">
-</div>
+  <div id="mercy">
+    <div id="mercyCenter">
+      <img src="./mercy.png" alt="mercy">
+      <div id="mercyText">Don’t hit me… 🥺</div>
+    </div>
+    <div id="smallRitos"><img src="./bad.png" alt="ritos"></div>
+  </div>
 
-<!-- EMOJI CHAOS -->
-<div id="emojiChaos"></div>
+  <div id="dark40"><img src="./level40.png" alt="level40"></div>
+  <div id="emojiChaos"></div>
 
+  <div id="hammer">🔨</div>
 </div>
 
 <script>
 (() => {
-
-let score=0;
-let running=false;
-let inBonus=false;
-
-const scoreEl=document.getElementById("score");
-const hud=document.getElementById("hud");
-const overlay=document.getElementById("overlay");
-const table=document.getElementById("table");
-
-const dark40=document.getElementById("dark40");
-const emojiChaos=document.getElementById("emojiChaos");
-
-function gameOver(){
-  running=false;
-  inBonus=false;
-  dark40.style.display="none";
-  emojiChaos.style.display="none";
-  overlay.style.display="flex";
-  table.style.opacity=0;
-  hud.style.display="none";
-}
-
-function startLevel40(){
-  inBonus=true;
-  running=false;
-
-  // PHASE 1 — DARK IMAGE
-  dark40.style.display="flex";
-
-  setTimeout(()=>{
-    dark40.style.display="none";
-    startEmojiChaos();
-  },4000);
-}
-
-function startEmojiChaos(){
-  emojiChaos.innerHTML="";
-  emojiChaos.style.display="block";
-
-  const emojis = ["😈","🤡","💀","🔥","🍕","👀","🧠","💣","🐸","👻","😵‍💫","🦴","🧟","🥴"];
-  const dog = "🐶";
-
-  const total = 90; // hilariously plenty
-
-  // create many wrong emojis
-  for(let i=0;i<total;i++){
-    const e=document.createElement("div");
-    e.className="emoji";
-    e.textContent = emojis[Math.floor(Math.random()*emojis.length)];
-    e.style.left=Math.random()*90+"%";
-    e.style.top=Math.random()*90+"%";
-    e.onclick=()=>gameOver();
-    emojiChaos.appendChild(e);
-  }
-
-  // add ONE dog
-  const dogEl=document.createElement("div");
-  dogEl.className="emoji";
-  dogEl.textContent=dog;
-  dogEl.style.left=Math.random()*85+"%";
-  dogEl.style.top=Math.random()*85+"%";
-  dogEl.onclick=(e)=>{
-    e.stopPropagation();
-    score+=10;
-    scoreEl.textContent=score;
-    endEmojiChaos();
+  const SRC = {
+    bg: "./bg.png",
+    table: "./table.png",
+    good: "./good.png",      // Tiga
+    bad: "./bad.png",        // Ritos
+    boss5: "./boss.png",     // Level 5
+    mercy: "./mercy.png",    // Level 30
+    level40: "./level40.png" // Level 40
   };
-  emojiChaos.appendChild(dogEl);
 
-  // timeout = fail
-  setTimeout(()=>gameOver(),5000);
-}
+  const holes = [
+    {x:.20,y:.62},{x:.50,y:.63},{x:.80,y:.62},
+    {x:.20,y:.40},{x:.50,y:.40},{x:.80,y:.40}
+  ];
 
-function endEmojiChaos(){
-  emojiChaos.style.display="none";
-  inBonus=false;
-  running=true;
-}
+  let score = 0;
+  let running = false;
+  let activeHole = null;
+  let loopTimer = null;
+  let despawnTimer = null;
+  let inBonus = false;
 
-document.getElementById("play").onclick=()=>{
-  score=0;
-  scoreEl.textContent=0;
-  running=true;
-  overlay.style.display="none";
-  table.style.opacity=1;
-  hud.style.display="block";
+  let spawnDelay = 1700;
+  let visibleTime = 1250;
+  let goodChance = 0.22;
+  let fakeChance = 0.22;
 
-  // DEBUG trigger (remove later)
-  // setTimeout(startLevel40,2000);
-};
+  // Level 30 movement
+  let mercyRAF = null;
+  let rX = 120, rY = 120, rVX = 3.2, rVY = 2.6;
 
-// simulate reaching 40 for now
-document.addEventListener("keydown",e=>{
-  if(e.key==="4"){
-    score=40;
-    scoreEl.textContent=40;
-    startLevel40();
+  // DOM
+  const table = document.getElementById("table");
+  const hud = document.getElementById("hud");
+  const scoreEl = document.getElementById("score");
+  const overlay = document.getElementById("overlay");
+  const playBtn = document.getElementById("play");
+  const statusEl = document.getElementById("status");
+  const hammer = document.getElementById("hammer");
+
+  const boss5 = document.getElementById("boss5");
+  const boss5Img = document.getElementById("boss5Img");
+
+  const mercy = document.getElementById("mercy");
+  const smallRitos = document.getElementById("smallRitos");
+
+  const dark40 = document.getElementById("dark40");
+  const emojiChaos = document.getElementById("emojiChaos");
+
+  // iOS: prevent scroll stealing taps
+  document.addEventListener("gesturestart", e => e.preventDefault());
+  document.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
+
+  // Hammer
+  document.addEventListener("pointerdown", (e) => {
+    hammer.style.left = e.clientX + "px";
+    hammer.style.top = e.clientY + "px";
+    hammer.style.display = "block";
+  });
+  document.addEventListener("pointerup", () => hammer.style.display = "none");
+
+  // Simple beep
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = AudioCtx ? new AudioCtx() : null;
+  function beep(freq){
+    if(!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.frequency.value = freq;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.22, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.22);
+    o.start(); o.stop(audioCtx.currentTime + 0.22);
   }
-});
+
+  function hardStopTimers(){
+    if(loopTimer){ clearTimeout(loopTimer); loopTimer=null; }
+    if(despawnTimer){ clearTimeout(despawnTimer); despawnTimer=null; }
+  }
+  function removeActive(){
+    if(activeHole){ activeHole.remove(); activeHole=null; }
+  }
+  function setScore(n){
+    score = n;
+    scoreEl.textContent = String(score);
+  }
+
+  function resetOverlays(){
+    boss5.style.display = "none";
+    mercy.style.display = "none";
+    dark40.style.display = "none";
+    emojiChaos.style.display = "none";
+    stopMercyMove();
+    inBonus = false;
+  }
+
+  function gameOver(){
+    running = false;
+    inBonus = false;
+    hardStopTimers();
+    removeActive();
+    resetOverlays();
+
+    overlay.style.display = "flex";
+    table.style.opacity = 0;
+    hud.style.display = "none";
+    playBtn.disabled = false;
+    playBtn.textContent = "Play";
+    statusEl.innerHTML = "Game over.<small>Tap Play to restart.</small>";
+  }
+
+  // ---------- Level 5 boss (3 seconds spam hits) ----------
+  function startBoss5(){
+    inBonus = true;
+    running = false;
+    hardStopTimers();
+    removeActive();
+
+    boss5.style.display = "flex";
+    const start = Date.now();
+    const duration = 3000;
+    const amp = Math.min(window.innerWidth * 0.22, 170);
+
+    boss5.onclick = () => {
+      setScore(score + 1);
+      beep(430);
+      boss5.classList.add("shake");
+      setTimeout(()=>boss5.classList.remove("shake"),140);
+    };
+
+    const moveTimer = setInterval(() => {
+      const t = (Date.now() - start)/1000;
+      boss5Img.style.transform = `translateX(${Math.sin(t*6.0)*amp}px)`;
+
+      if(Date.now() - start >= duration){
+        clearInterval(moveTimer);
+        boss5.onclick = null;
+        boss5Img.style.transform = "translateX(0)";
+        boss5.style.display = "none";
+        inBonus = false;
+
+        // slow down after boss
+        spawnDelay = 1250;
+        visibleTime = 950;
+
+        running = true;
+        loop();
+      }
+    }, 16);
+  }
+
+  // ---------- Level 30 Mercy (8 seconds) ----------
+  function startMercy30(){
+    inBonus = true;
+    running = false;
+    hardStopTimers();
+    removeActive();
+
+    mercy.style.display = "block";
+    smallRitos.style.display = "block";
+
+    // start somewhere not on top of center
+    rX = Math.random() * (innerWidth - 120) + 40;
+    rY = Math.random() * (innerHeight - 200) + 80;
+    rVX = (Math.random() < .5 ? -1 : 1) * (2.6 + Math.random()*2.2);
+    rVY = (Math.random() < .5 ? -1 : 1) * (2.2 + Math.random()*2.0);
+
+    smallRitos.onclick = (e) => {
+      e.stopPropagation();
+      setScore(score + 5);
+      beep(650);
+      endMercy30();
+    };
+
+    mercy.onclick = (e) => {
+      if(e.target.closest("#smallRitos")) return;
+      beep(120);
+      alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
+      gameOver();
+    };
+
+    startMercyMove();
+
+    const endAt = Date.now() + 8000;
+    const t = setInterval(() => {
+      if(Date.now() >= endAt){
+        clearInterval(t);
+        endMercy30();
+      }
+    }, 50);
+
+    function endMercy30(){
+      if(!inBonus) return;
+      endMercy30 = () => {};
+      inBonus = false;
+      mercy.onclick = null;
+      smallRitos.onclick = null;
+      stopMercyMove();
+      mercy.style.display = "none";
+      smallRitos.style.display = "none";
+      running = true;
+      loop();
+    }
+    window.endMercy30 = endMercy30; // for click handler
+  }
+
+  function startMercyMove(){
+    stopMercyMove();
+    const pad = 16;
+
+    function frame(){
+      if(!inBonus || mercy.style.display !== "block") return;
+
+      rX += rVX;
+      rY += rVY;
+
+      // bounce edges
+      if(rX < pad || rX > innerWidth - 72 - pad) rVX *= -1;
+      if(rY < pad || rY > innerHeight - 72 - pad) rVY *= -1;
+
+      // occasionally “tempt” passing near center (but not camping)
+      if(Math.random() < 0.012){
+        const cx = innerWidth * 0.5, cy = innerHeight * 0.5;
+        rVX += (cx - rX) * 0.0009;
+        rVY += (cy - rY) * 0.0009;
+      }
+
+      // random slight direction wobble
+      if(Math.random() < 0.02){
+        rVX += (Math.random() - 0.5) * 0.5;
+        rVY += (Math.random() - 0.5) * 0.5;
+        // clamp speed
+        const sp = Math.hypot(rVX, rVY);
+        const maxSp = 6.2;
+        if(sp > maxSp){ rVX = (rVX/sp)*maxSp; rVY = (rVY/sp)*maxSp; }
+      }
+
+      smallRitos.style.left = rX + "px";
+      smallRitos.style.top  = rY + "px";
+
+      mercyRAF = requestAnimationFrame(frame);
+    }
+    mercyRAF = requestAnimationFrame(frame);
+  }
+
+  function stopMercyMove(){
+    if(mercyRAF){
+      cancelAnimationFrame(mercyRAF);
+      mercyRAF = null;
+    }
+  }
+
+  // ---------- Level 40 Dark → Emoji Chaos ----------
+  function startLevel40(){
+    inBonus = true;
+    running = false;
+    hardStopTimers();
+    removeActive();
+
+    // Phase 1: pure darkness + image (4s)
+    dark40.style.display = "flex";
+
+    setTimeout(() => {
+      if(!inBonus) return;
+      dark40.style.display = "none";
+      startEmojiChaos();
+    }, 4000);
+  }
+
+  function startEmojiChaos(){
+    emojiChaos.innerHTML = "";
+    emojiChaos.style.display = "block";
+
+    const wrong = ["😈","🤡","💀","🔥","🍕","👀","🧠","💣","🐸","👻","😵‍💫","🦴","🧟","🥴","🧨","🪦","🕷️","🧪","🫠","😵","😬"];
+    const dog = "🐶";
+
+    const total = 140; // hilariously plenty
+
+    // wrong emojis
+    for(let i=0;i<total;i++){
+      const el = document.createElement("div");
+      el.className = "emoji";
+      el.textContent = wrong[Math.floor(Math.random()*wrong.length)];
+      el.style.left = (Math.random()*92) + "%";
+      el.style.top  = (Math.random()*92) + "%";
+      el.onclick = () => gameOver();
+      emojiChaos.appendChild(el);
+    }
+
+    // one correct dog
+    const dogEl = document.createElement("div");
+    dogEl.className = "emoji";
+    dogEl.textContent = dog;
+    dogEl.style.left = (Math.random()*86) + "%";
+    dogEl.style.top  = (Math.random()*86) + "%";
+    dogEl.onclick = (e) => {
+      e.stopPropagation();
+      beep(700);
+      // success: continue (no score change unless you want)
+      emojiChaos.style.display = "none";
+      inBonus = false;
+      running = true;
+      loop();
+    };
+    emojiChaos.appendChild(dogEl);
+
+    // timeout = fail (5s)
+    setTimeout(() => {
+      if(inBonus && emojiChaos.style.display === "block") gameOver();
+    }, 5000);
+  }
+
+  // ---------- Core spawn ----------
+  function holePixel(i){
+    const r = table.getBoundingClientRect();
+    return {
+      x: r.left + holes[i].x * r.width,
+      y: r.top  + (1 - holes[i].y) * r.height
+    };
+  }
+
+  function spawn(){
+    if(!running || inBonus) return;
+    removeActive();
+
+    const r = table.getBoundingClientRect();
+    if(r.width < 60 || r.height < 60){
+      loopTimer = setTimeout(loop, 120);
+      return;
+    }
+
+    const idx = Math.floor(Math.random()*holes.length);
+    const p = holePixel(idx);
+
+    const hole = document.createElement("div");
+    hole.className = "hole";
+    hole.style.left = (p.x - 48) + "px";
+    hole.style.top  = (p.y - 48) + "px";
+
+    const isFake = Math.random() < fakeChance;
+    const isGood = isFake || (Math.random() < goodChance);
+
+    const t = document.createElement("div");
+    t.className = "target";
+    t.innerHTML = `<img src="${isGood ? SRC.good : SRC.bad}">`;
+
+    t.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if(!running || inBonus) return;
+
+      if(isGood){
+        beep(120);
+        alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
+        gameOver();
+        return;
+      }
+
+      // Ritos hit
+      setScore(score + 1);
+      beep(620);
+      removeActive();
+
+      // milestones
+      if(score === 5){ startBoss5(); return; }
+      if(score === 30){ startMercy30(); return; }
+      if(score === 40){ startLevel40(); return; }
+
+      // gentle ramp after 5
+      if(score > 5){
+        spawnDelay = Math.max(900, spawnDelay - 35);
+        visibleTime = Math.max(650, visibleTime - 20);
+        fakeChance = Math.min(0.30, fakeChance + 0.002);
+      }
+    }, {passive:false});
+
+    hole.appendChild(t);
+    document.body.appendChild(hole);
+    activeHole = hole;
+
+    requestAnimationFrame(() => t.classList.add("show"));
+
+    despawnTimer = setTimeout(() => {
+      if(activeHole === hole) removeActive();
+    }, visibleTime);
+  }
+
+  function loop(){
+    if(!running || inBonus) return;
+    spawn();
+    loopTimer = setTimeout(loop, spawnDelay);
+  }
+
+  // ---------- Preload ----------
+  async function preloadAll(){
+    const entries = Object.entries(SRC);
+    const failed = [];
+    await Promise.all(entries.map(([k, src]) => new Promise((res) => {
+      const img = new Image();
+      img.onload = () => res();
+      img.onerror = () => { failed.push(src); res(); };
+      img.src = src + "?v=" + Date.now();
+    })));
+    return failed;
+  }
+
+  // ---------- Start ----------
+  playBtn.addEventListener("click", async () => {
+    if(audioCtx && audioCtx.state === "suspended"){ try{ await audioCtx.resume(); }catch{} }
+
+    setScore(0);
+    running = true;
+    inBonus = false;
+    hardStopTimers();
+    removeActive();
+    resetOverlays();
+
+    spawnDelay = 1700;
+    visibleTime = 1250;
+    goodChance = 0.22;
+    fakeChance = 0.22;
+
+    overlay.style.display = "none";
+    table.style.opacity = 1;
+    hud.style.display = "block";
+
+    setTimeout(loop, 900);
+  });
+
+  // boot
+  (async () => {
+    const failed = await preloadAll();
+    if(failed.length){
+      playBtn.disabled = true;
+      playBtn.textContent = "Fix files";
+      statusEl.innerHTML =
+        "Images failed to load:<small style='display:block;margin-top:8px;opacity:.85'>" +
+        failed.map(s => s.replace("./","")).join(", ") +
+        "</small><small>Check names (lowercase) in repo root.</small>";
+      return;
+    }
+    playBtn.disabled = false;
+    playBtn.textContent = "Play";
+    statusEl.innerHTML = "Ready.<small>Hit Ritos for points. If you hit Tiga: game over.</small>";
+  })();
 
 })();
 </script>
