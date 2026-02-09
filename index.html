@@ -15,33 +15,42 @@ html,body{
 body{touch-action:manipulation}
 #app{position:relative;width:100%;height:100%;overflow:hidden}
 
+/* background */
 #bg{
   position:absolute;inset:0;
   width:100%;height:100%;
   object-fit:cover;z-index:0
 }
 
+/* table */
 #table{
-  position:absolute;left:50%;top:55%;
+  position:absolute;left:50%;top:56%;
   transform:translate(-50%,-50%);
   width:min(94vw,900px);
   opacity:0;transition:.3s;
   z-index:1
 }
 
+/* SCORE: bigger + positioned above the table */
 #hud{
-  position:absolute;top:14px;left:14px;
+  position:absolute;left:50%;
+  transform:translateX(-50%);
+  top:10%;
   background:#00c853;color:#fff;
-  padding:10px 14px;border-radius:12px;
-  font-weight:900;display:none;z-index:10
+  padding:14px 20px;border-radius:16px;
+  font-weight:1000;font-size:22px;
+  display:none;z-index:10;
+  box-shadow:0 10px 26px rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.18);
 }
 
+/* overlay */
 #overlay{
   position:absolute;inset:0;
   display:flex;flex-direction:column;
   justify-content:center;align-items:center;
   gap:12px;z-index:20;
-  background:rgba(0,0,0,.4)
+  background:rgba(0,0,0,.45)
 }
 #play{
   background:#00c853;color:#fff;
@@ -51,6 +60,7 @@ body{touch-action:manipulation}
 }
 #msg{color:#fff;font-weight:800;text-align:center}
 
+/* holes & targets */
 .hole{
   position:absolute;width:96px;height:96px;
   border-radius:50%;z-index:5
@@ -68,6 +78,7 @@ body{touch-action:manipulation}
 .target.show{opacity:1;transform:scale(1);bottom:0}
 .target img{width:92px;height:92px;border-radius:50%}
 
+/* hammer */
 #hammer{
   position:absolute;
   width:80px;height:80px;
@@ -77,25 +88,34 @@ body{touch-action:manipulation}
   display:none;z-index:999
 }
 
+/* boss overlay */
 #boss{
   position:absolute;inset:0;
   display:none;align-items:center;justify-content:center;
   z-index:50;
-  background:rgba(0,0,0,.65)
+  background:rgba(0,0,0,.65);
+  overflow:hidden;
+}
+#bossInner{
+  position:relative;
+  will-change:transform,left;
+  display:flex;align-items:center;justify-content:center;
 }
 #boss img{
-  width:65vw;max-width:440px;
-  border-radius:50%;
+  width:min(78vw,560px);
+  border-radius:0;            /* NOT circular */
+  box-shadow:0 18px 60px rgba(0,0,0,.55);
 }
 
+/* shake the whole screen on boss hit */
 .shake{
   animation:shake .15s;
 }
 @keyframes shake{
   0%{transform:translate(0)}
-  25%{transform:translate(-8px,6px)}
-  50%{transform:translate(6px,-6px)}
-  75%{transform:translate(-6px,6px)}
+  25%{transform:translate(-10px,7px)}
+  50%{transform:translate(9px,-7px)}
+  75%{transform:translate(-7px,7px)}
   100%{transform:translate(0)}
 }
 </style>
@@ -115,7 +135,9 @@ body{touch-action:manipulation}
 </div>
 
 <div id="boss">
-  <img src="./boss.png">
+  <div id="bossInner">
+    <img id="bossImg" src="./boss.png" alt="boss">
+  </div>
 </div>
 
 <div id="hammer"></div>
@@ -124,27 +146,32 @@ body{touch-action:manipulation}
 
 <script>
 (() => {
-
 const GOOD="./good.png";
-const BAD="./bad.png";
+const BAD ="./bad.png";
 
+/* holes */
 const holes=[
   {x:.2,y:.62},{x:.5,y:.63},{x:.8,y:.62},
   {x:.2,y:.4},{x:.5,y:.4},{x:.8,y:.4}
 ];
 
+/* pacing */
+let spawnDelay=1500;   // starts slower
+let visibleTime=1100;
+let fakeChance=.25;
+
 let score=0;
 let running=false;
 let active=null;
-let spawnDelay=1400;
-let visibleTime=1000;
-let fakeChance=.25;
+let loopTimer=null;
+let bossActive=false;
 
 const table=document.getElementById("table");
 const hud=document.getElementById("hud");
 const scoreEl=document.getElementById("score");
 const overlay=document.getElementById("overlay");
 const boss=document.getElementById("boss");
+const bossInner=document.getElementById("bossInner");
 const hammer=document.getElementById("hammer");
 
 /* sound memes */
@@ -158,7 +185,7 @@ function beep(freq){
   o.start(); o.stop(ctx.currentTime+.25);
 }
 
-/* hammer */
+/* hammer on tap */
 document.addEventListener("pointerdown",e=>{
   hammer.style.left=e.clientX+"px";
   hammer.style.top=e.clientY+"px";
@@ -166,40 +193,76 @@ document.addEventListener("pointerdown",e=>{
 });
 document.addEventListener("pointerup",()=>hammer.style.display="none");
 
+/* cleanup */
+function stopLoop(){
+  if(loopTimer){ clearTimeout(loopTimer); loopTimer=null; }
+}
+function removeActive(){
+  if(active){ active.remove(); active=null; }
+}
 function gameOver(){
   running=false;
+  bossActive=false;
+  stopLoop();
+  removeActive();
+  boss.style.display="none";
   overlay.style.display="flex";
   table.style.opacity=0;
   hud.style.display="none";
 }
 
+/* boss movement left-right */
 function bossMode(){
+  bossActive=true;
   boss.style.display="flex";
-  let end=Date.now()+3000;
+  removeActive();
+  stopLoop();
 
-  boss.onclick=()=>{
+  const start=Date.now();
+  const duration=3000;
+
+  // movement amplitude
+  const amp= Math.min(window.innerWidth * 0.22, 160);
+
+  // boss hit
+  const onBossHit=()=>{
     score++;
     scoreEl.textContent=score;
     beep(420);
+    // shake the whole overlay container
     boss.classList.add("shake");
     setTimeout(()=>boss.classList.remove("shake"),150);
   };
 
-  const timer=setInterval(()=>{
-    if(Date.now()>end){
-      clearInterval(timer);
+  boss.onclick=onBossHit;
+
+  // move left-right during boss
+  const moveInterval=setInterval(()=>{
+    const t=(Date.now()-start)/1000;
+    const x=Math.sin(t*6.5)*amp; // speed
+    bossInner.style.transform=`translateX(${x}px)`;
+    if(Date.now()-start >= duration){
+      clearInterval(moveInterval);
       boss.onclick=null;
       boss.style.display="none";
-      spawnDelay=Math.max(700,spawnDelay-200);
-      visibleTime=Math.max(600,visibleTime-150);
+      bossInner.style.transform="translateX(0)";
+      bossActive=false;
+
+      // IMPORTANT: SLOW DOWN after boss (your request)
+      spawnDelay = 1200;     // not too fast
+      visibleTime = 900;
+
+      // Progressive speed-up (gentle) after 5+ points
       loop();
     }
-  },50);
+  }, 16);
 }
 
+/* spawn */
 function spawn(){
-  if(!running) return;
-  if(active) active.remove();
+  if(!running || bossActive) return;
+
+  removeActive();
 
   const r=table.getBoundingClientRect();
   const h=holes[Math.floor(Math.random()*holes.length)];
@@ -226,8 +289,20 @@ function spawn(){
       score++;
       beep(620);
       scoreEl.textContent=score;
-      if(score===5){ bossMode(); return; }
-      t.remove();
+
+      // Boss at 5
+      if(score===5){
+        bossMode();
+        return;
+      }
+
+      // Gentle speed-up AFTER 5 points (not ultra fast)
+      if(score>5){
+        spawnDelay = Math.max(900, spawnDelay - 40);
+        visibleTime = Math.max(650, visibleTime - 25);
+      }
+
+      removeActive();
     }
   };
 
@@ -236,25 +311,37 @@ function spawn(){
   active=hole;
 
   requestAnimationFrame(()=>t.classList.add("show"));
-  setTimeout(()=>{ if(active===hole) hole.remove(); },visibleTime);
+
+  setTimeout(()=>{
+    if(active===hole) removeActive();
+  }, visibleTime);
 }
 
+/* main loop */
 function loop(){
-  if(!running) return;
+  if(!running || bossActive) return;
   spawn();
-  setTimeout(loop,spawnDelay);
+  loopTimer=setTimeout(loop, spawnDelay);
 }
 
+/* start */
 document.getElementById("play").onclick=()=>{
   score=0;
   scoreEl.textContent=0;
-  spawnDelay=1500;
-  visibleTime=1100;
+
+  // start slow
+  spawnDelay=1600;
+  visibleTime=1200;
+
   running=true;
+  bossActive=false;
+
   overlay.style.display="none";
   table.style.opacity=1;
   hud.style.display="block";
-  setTimeout(loop,900);
+
+  // slower start feel
+  setTimeout(loop, 1200);
 };
 
 })();
