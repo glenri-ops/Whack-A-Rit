@@ -95,16 +95,19 @@
     position:absolute;inset:0;display:none;z-index:90;
     background:rgba(0,0,0,.92);
   }
+
+  /* Emojis: no overlap comes from JS placement, this keeps them readable */
   .emoji{
     position:absolute;
-    font-size:38px;
+    font-size:36px;
     cursor:pointer;
     user-select:none;
-    animation: jitter .55s infinite alternate;
+    will-change:transform,left,top;
+    animation: jitter .7s infinite alternate;
   }
   @keyframes jitter{
-    from{transform:translate(-2px,-2px)}
-    to{transform:translate(2px,2px)}
+    from{transform:translate(-1px,-1px)}
+    to{transform:translate(1px,1px)}
   }
 
   .shake{animation:shake .14s}
@@ -178,6 +181,10 @@
   let mercyRAF = null;
   let rX = 120, rY = 120, rVX = 3.2, rVY = 2.6;
 
+  // Level 40 timers
+  let level40Timeout = null;
+  let emojiTimeout = null;
+
   // DOM
   const table = document.getElementById("table");
   const hud = document.getElementById("hud");
@@ -234,12 +241,25 @@
     scoreEl.textContent = String(score);
   }
 
+  function stopMercyMove(){
+    if(mercyRAF){
+      cancelAnimationFrame(mercyRAF);
+      mercyRAF = null;
+    }
+  }
+
+  function clearLevel40Timers(){
+    if(level40Timeout){ clearTimeout(level40Timeout); level40Timeout=null; }
+    if(emojiTimeout){ clearTimeout(emojiTimeout); emojiTimeout=null; }
+  }
+
   function resetOverlays(){
     boss5.style.display = "none";
     mercy.style.display = "none";
     dark40.style.display = "none";
     emojiChaos.style.display = "none";
     stopMercyMove();
+    clearLevel40Timers();
     inBonus = false;
   }
 
@@ -308,7 +328,6 @@
     mercy.style.display = "block";
     smallRitos.style.display = "block";
 
-    // start somewhere not on top of center
     rX = Math.random() * (innerWidth - 120) + 40;
     rY = Math.random() * (innerHeight - 200) + 80;
     rVX = (Math.random() < .5 ? -1 : 1) * (2.6 + Math.random()*2.2);
@@ -340,7 +359,6 @@
 
     function endMercy30(){
       if(!inBonus) return;
-      endMercy30 = () => {};
       inBonus = false;
       mercy.onclick = null;
       smallRitos.onclick = null;
@@ -350,52 +368,39 @@
       running = true;
       loop();
     }
-    window.endMercy30 = endMercy30; // for click handler
-  }
 
-  function startMercyMove(){
-    stopMercyMove();
-    const pad = 16;
+    function startMercyMove(){
+      stopMercyMove();
+      const pad = 16;
+      function frame(){
+        if(!inBonus || mercy.style.display !== "block") return;
 
-    function frame(){
-      if(!inBonus || mercy.style.display !== "block") return;
+        rX += rVX;
+        rY += rVY;
 
-      rX += rVX;
-      rY += rVY;
+        if(rX < pad || rX > innerWidth - 72 - pad) rVX *= -1;
+        if(rY < pad || rY > innerHeight - 72 - pad) rVY *= -1;
 
-      // bounce edges
-      if(rX < pad || rX > innerWidth - 72 - pad) rVX *= -1;
-      if(rY < pad || rY > innerHeight - 72 - pad) rVY *= -1;
+        if(Math.random() < 0.012){
+          const cx = innerWidth * 0.5, cy = innerHeight * 0.5;
+          rVX += (cx - rX) * 0.0009;
+          rVY += (cy - rY) * 0.0009;
+        }
 
-      // occasionally “tempt” passing near center (but not camping)
-      if(Math.random() < 0.012){
-        const cx = innerWidth * 0.5, cy = innerHeight * 0.5;
-        rVX += (cx - rX) * 0.0009;
-        rVY += (cy - rY) * 0.0009;
+        if(Math.random() < 0.02){
+          rVX += (Math.random() - 0.5) * 0.5;
+          rVY += (Math.random() - 0.5) * 0.5;
+          const sp = Math.hypot(rVX, rVY);
+          const maxSp = 6.2;
+          if(sp > maxSp){ rVX = (rVX/sp)*maxSp; rVY = (rVY/sp)*maxSp; }
+        }
+
+        smallRitos.style.left = rX + "px";
+        smallRitos.style.top  = rY + "px";
+
+        mercyRAF = requestAnimationFrame(frame);
       }
-
-      // random slight direction wobble
-      if(Math.random() < 0.02){
-        rVX += (Math.random() - 0.5) * 0.5;
-        rVY += (Math.random() - 0.5) * 0.5;
-        // clamp speed
-        const sp = Math.hypot(rVX, rVY);
-        const maxSp = 6.2;
-        if(sp > maxSp){ rVX = (rVX/sp)*maxSp; rVY = (rVY/sp)*maxSp; }
-      }
-
-      smallRitos.style.left = rX + "px";
-      smallRitos.style.top  = rY + "px";
-
       mercyRAF = requestAnimationFrame(frame);
-    }
-    mercyRAF = requestAnimationFrame(frame);
-  }
-
-  function stopMercyMove(){
-    if(mercyRAF){
-      cancelAnimationFrame(mercyRAF);
-      mercyRAF = null;
     }
   }
 
@@ -405,47 +410,87 @@
     running = false;
     hardStopTimers();
     removeActive();
+    clearLevel40Timers();
 
-    // Phase 1: pure darkness + image (4s)
+    // Phase 1: show image for 3 seconds
     dark40.style.display = "flex";
 
-    setTimeout(() => {
+    level40Timeout = setTimeout(() => {
       if(!inBonus) return;
       dark40.style.display = "none";
       startEmojiChaos();
-    }, 4000);
+    }, 3000);
   }
 
   function startEmojiChaos(){
     emojiChaos.innerHTML = "";
     emojiChaos.style.display = "block";
 
-    const wrong = ["😈","🤡","💀","🔥","🍕","👀","🧠","💣","🐸","👻","😵‍💫","🦴","🧟","🥴","🧨","🪦","🕷️","🧪","🫠","😵","😬"];
+    const wrong = ["😈","🤡","💀","🔥","🍕","👀","🧠","💣","🐸","👻","😵‍💫","🦴","🧟","🥴","🧨","🪦","🕷️","🧪","🫠","😵","😬","🫥","🫡","🧃","🪬","🦷","🧊","🪓"];
     const dog = "🐶";
 
-    const total = 140; // hilariously plenty
+    // ---- Non-overlapping placement ----
+    // Approx emoji visual size in px and required spacing
+    const size = 36;
+    const minDist = 52; // ensures "no touching"
+    const pad = 18;
 
-    // wrong emojis
-    for(let i=0;i<total;i++){
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    // Decide a count that can actually fit without overlap
+    const area = W * H;
+    const approxMax = Math.floor(area / (minDist * minDist) * 0.55);
+    const totalWrong = Math.max(55, Math.min(110, approxMax)); // "plenty" but feasible
+
+    const points = [];
+
+    function farEnough(x,y){
+      for(const p of points){
+        const dx = x - p.x, dy = y - p.y;
+        if(dx*dx + dy*dy < (minDist*minDist)) return false;
+      }
+      return true;
+    }
+
+    function pickSpot(maxAttempts = 5000){
+      for(let i=0;i<maxAttempts;i++){
+        const x = pad + Math.random() * (W - pad*2);
+        const y = pad + Math.random() * (H - pad*2);
+        if(farEnough(x,y)){
+          points.push({x,y});
+          return {x,y};
+        }
+      }
+      // fallback: if too dense, just place with last-known spacing
+      const x = pad + Math.random() * (W - pad*2);
+      const y = pad + Math.random() * (H - pad*2);
+      points.push({x,y});
+      return {x,y};
+    }
+
+    // Place wrong emojis
+    for(let i=0;i<totalWrong;i++){
       const el = document.createElement("div");
       el.className = "emoji";
       el.textContent = wrong[Math.floor(Math.random()*wrong.length)];
-      el.style.left = (Math.random()*92) + "%";
-      el.style.top  = (Math.random()*92) + "%";
+      const pos = pickSpot();
+      el.style.left = (pos.x) + "px";
+      el.style.top  = (pos.y) + "px";
       el.onclick = () => gameOver();
       emojiChaos.appendChild(el);
     }
 
-    // one correct dog
+    // Place ONE dog emoji far from others too
     const dogEl = document.createElement("div");
     dogEl.className = "emoji";
     dogEl.textContent = dog;
-    dogEl.style.left = (Math.random()*86) + "%";
-    dogEl.style.top  = (Math.random()*86) + "%";
+    const dogPos = pickSpot();
+    dogEl.style.left = dogPos.x + "px";
+    dogEl.style.top  = dogPos.y + "px";
     dogEl.onclick = (e) => {
       e.stopPropagation();
       beep(700);
-      // success: continue (no score change unless you want)
       emojiChaos.style.display = "none";
       inBonus = false;
       running = true;
@@ -453,10 +498,10 @@
     };
     emojiChaos.appendChild(dogEl);
 
-    // timeout = fail (5s)
-    setTimeout(() => {
+    // Longer time: 8 seconds
+    emojiTimeout = setTimeout(() => {
       if(inBonus && emojiChaos.style.display === "block") gameOver();
-    }, 5000);
+    }, 8000);
   }
 
   // ---------- Core spawn ----------
@@ -505,17 +550,14 @@
         return;
       }
 
-      // Ritos hit
       setScore(score + 1);
       beep(620);
       removeActive();
 
-      // milestones
       if(score === 5){ startBoss5(); return; }
       if(score === 30){ startMercy30(); return; }
       if(score === 40){ startLevel40(); return; }
 
-      // gentle ramp after 5
       if(score > 5){
         spawnDelay = Math.max(900, spawnDelay - 35);
         visibleTime = Math.max(650, visibleTime - 20);
