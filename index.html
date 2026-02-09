@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Whack Game</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto;-webkit-tap-highlight-color:transparent; overscroll-behavior:none}
+  body{touch-action:manipulation}
+  #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
+  #bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;user-select:none;-webkit-user-drag:none}
+  #table{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,900px);height:auto;opacity:0;transition:opacity .2s;z-index:1;user-select:none;-webkit-user-drag:none}
+
+  #hud{position:absolute;left:16px;right:16px;top:12px;display:none;gap:12px;color:#fff;z-index:5}
+  .pill{background:#00c853;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 14px;
+        box-shadow:0 6px 18px rgba(0,0,0,.25);font-weight:800}
+  .pill span{font-weight:900}
+
+  #startOverlay{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;z-index:20;background:rgba(0,0,0,0.06)}
+  #play{background:#00c853;border:0;color:#fff;border-radius:18px;padding:18px 40px;font-size:22px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+  #play:active{transform:translateY(1px)}
+  #hint{color:rgba(255,255,255,.78);font-weight:700;text-align:center;max-width:340px;line-height:1.25}
+
+  .hole{position:absolute;width:96px;height:96px;border-radius:50%;overflow:visible;pointer-events:auto;z-index:6}
+  .target{position:absolute;left:0;right:0;margin:auto;bottom:-44px;width:96px;height:96px;border-radius:50%;
+          background:#111;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;
+          opacity:0;transform:scale(.92);transition:transform .14s ease-out, opacity .08s ease-out, bottom .14s ease-out;
+          pointer-events:auto}
+  .target img{width:92px;height:92px;border-radius:50%;user-select:none;-webkit-user-drag:none}
+  .target.show{opacity:1;transform:scale(1);bottom:0}
+  .ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,255,255,.28);pointer-events:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <img id="bgImg" src="assets/bg.png" alt="bg" draggable="false"/>
+  <img id="table" src="assets/table.png" alt="table" draggable="false"/>
+
+  <div id="hud">
+    <div class="pill">Score: <span id="score">0</span></div>
+    <div class="pill">Lives: <span id="lives">●●●</span></div>
+  </div>
+
+  <div id="startOverlay">
+    <button id="play" type="button">Play</button>
+    <div id="hint">Tap anywhere to start</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const holes = [
+    {x:.20,y:.63},{x:.50,y:.64},{x:.80,y:.63},
+    {x:.20,y:.40},{x:.50,y:.40},{x:.80,y:.40}
+  ];
+
+  let score=0, lives=3, running=false, active=null, timeout=null;
+
+  const table=document.getElementById('table');
+  const scoreEl=document.getElementById('score');
+  const livesEl=document.getElementById('lives');
+  const hud=document.getElementById('hud');
+  const overlay=document.getElementById('startOverlay');
+  const playBtn=document.getElementById('play');
+
+  // Assets (file-based)
+  const GOOD_SRC = "assets/good.png";
+  const BAD_SRC  = "assets/bad.png";
+
+  function clampScore(){ if(score < 0) score = 0; }
+  function updateHUD(){ clampScore(); scoreEl.textContent=score; livesEl.textContent='●'.repeat(lives); }
+
+  function cleanup(){
+    if(!active) return;
+    active.t.classList.remove('show');
+    const holeEl = active.hole;
+    setTimeout(()=>holeEl.remove(), 140);
+    active = null;
+  }
+
+  function endGame(){
+    running=false;
+    table.style.opacity=0;
+    hud.style.display='none';
+    overlay.style.display='flex';
+    cleanup();
+    alert('Game Over');
+  }
+
+  function miss(){
+    clearTimeout(timeout);
+    if(!running) return;
+    lives--;
+    cleanup();
+    updateHUD();
+    if(lives<=0) endGame();
+  }
+
+  function hit(){
+    clearTimeout(timeout);
+    if(!active || !running) return;
+    if(active.isGood) score -= 1; else score += 1; // GOOD=-1 point, BAD=+1
+    cleanup();
+    updateHUD();
+  }
+
+  function holePixel(i){
+    const rect = table.getBoundingClientRect();
+    return {
+      x: rect.left + holes[i].x * rect.width,
+      y: rect.top  + (1 - holes[i].y) * rect.height
+    };
+  }
+
+  function spawn(){
+    if(!running) return;
+    if(active) miss();
+    if(!running) return;
+
+    const i = Math.floor(Math.random()*holes.length);
+    const isGood = Math.random() < 0.3; // 30% good
+    const p = holePixel(i);
+
+    const hole=document.createElement('div');
+    hole.className='hole';
+    hole.style.left = (p.x - 48) + 'px';
+    hole.style.top  = (p.y - 48) + 'px';
+
+    const t=document.createElement('div');
+    t.className='target';
+    t.innerHTML = '<div class="ring"></div><img src="' + (isGood ? GOOD_SRC : BAD_SRC) + '" />';
+
+    const tap = (e)=>{ e.preventDefault(); e.stopPropagation(); hit(); };
+    t.addEventListener('touchstart', tap, {passive:false});
+    t.addEventListener('touchend', tap, {passive:false});
+    t.addEventListener('pointerdown', tap);
+    t.addEventListener('click', tap);
+
+    hole.appendChild(t);
+    document.body.appendChild(hole);
+    active={hole:hole, t:t, isGood:isGood};
+
+    requestAnimationFrame(()=>t.classList.add('show'));
+    timeout=setTimeout(()=>miss(), 700);
+    setTimeout(spawn, 450 + Math.random()*400);
+  }
+
+  function startGame(){
+    score=0; lives=3; running=true; active=null;
+    updateHUD();
+    hud.style.display='flex';
+    table.style.opacity=1;
+    overlay.style.display='none';
+    setTimeout(spawn, 120);
+  }
+
+  const startTap = (e)=>{ e.preventDefault(); e.stopPropagation(); startGame(); };
+  playBtn.addEventListener('touchstart', startTap, {passive:false});
+  playBtn.addEventListener('touchend', startTap, {passive:false});
+  playBtn.addEventListener('pointerdown', startTap);
+  playBtn.addEventListener('click', startTap);
+  overlay.addEventListener('touchstart', startTap, {passive:false});
+  overlay.addEventListener('touchend', startTap, {passive:false});
+  overlay.addEventListener('pointerdown', startTap);
+  overlay.addEventListener('click', startTap);
+
+  window.addEventListener('resize', () => { if(active) cleanup(); });
+})();
+</script>
+</body>
+</html>
