@@ -15,14 +15,12 @@ html,body{
 body{touch-action:manipulation}
 #app{position:relative;width:100%;height:100%;overflow:hidden}
 
-/* background */
 #bg{
   position:absolute;inset:0;
   width:100%;height:100%;
   object-fit:cover;z-index:0
 }
 
-/* table */
 #table{
   position:absolute;left:50%;top:55%;
   transform:translate(-50%,-50%);
@@ -31,7 +29,6 @@ body{touch-action:manipulation}
   z-index:1
 }
 
-/* HUD */
 #hud{
   position:absolute;top:14px;left:14px;
   background:#00c853;color:#fff;
@@ -39,7 +36,6 @@ body{touch-action:manipulation}
   font-weight:900;display:none;z-index:10
 }
 
-/* overlay */
 #overlay{
   position:absolute;inset:0;
   display:flex;flex-direction:column;
@@ -55,7 +51,6 @@ body{touch-action:manipulation}
 }
 #msg{color:#fff;font-weight:800;text-align:center}
 
-/* holes & targets */
 .hole{
   position:absolute;width:96px;height:96px;
   border-radius:50%;z-index:5
@@ -73,7 +68,6 @@ body{touch-action:manipulation}
 .target.show{opacity:1;transform:scale(1);bottom:0}
 .target img{width:92px;height:92px;border-radius:50%}
 
-/* hammer */
 #hammer{
   position:absolute;
   width:80px;height:80px;
@@ -83,16 +77,26 @@ body{touch-action:manipulation}
   display:none;z-index:999
 }
 
-/* boss */
 #boss{
   position:absolute;inset:0;
   display:none;align-items:center;justify-content:center;
   z-index:50;
-  background:rgba(0,0,0,.6)
+  background:rgba(0,0,0,.65)
 }
 #boss img{
-  width:60vw;max-width:420px;
+  width:65vw;max-width:440px;
   border-radius:50%;
+}
+
+.shake{
+  animation:shake .15s;
+}
+@keyframes shake{
+  0%{transform:translate(0)}
+  25%{transform:translate(-8px,6px)}
+  50%{transform:translate(6px,-6px)}
+  75%{transform:translate(-6px,6px)}
+  100%{transform:translate(0)}
 }
 </style>
 </head>
@@ -107,11 +111,11 @@ body{touch-action:manipulation}
 
 <div id="overlay">
   <button id="play">Play</button>
-<div id="msg">Hit Ritos for points. Avoid Tiga 😈</div>
+  <div id="msg">Hit Ritos for points. Avoid Tiga 😈</div>
 </div>
 
 <div id="boss">
-  <img src="./bad.png">
+  <img src="./boss.png">
 </div>
 
 <div id="hammer"></div>
@@ -121,8 +125,8 @@ body{touch-action:manipulation}
 <script>
 (() => {
 
-const GOOD = "./good.png";
-const BAD  = "./bad.png";
+const GOOD="./good.png";
+const BAD="./bad.png";
 
 const holes=[
   {x:.2,y:.62},{x:.5,y:.63},{x:.8,y:.62},
@@ -132,9 +136,9 @@ const holes=[
 let score=0;
 let running=false;
 let active=null;
-let spawnDelay=1200;
-let visibleTime=900;
-let fakeChance=0.25;
+let spawnDelay=1400;
+let visibleTime=1000;
+let fakeChance=.25;
 
 const table=document.getElementById("table");
 const hud=document.getElementById("hud");
@@ -143,19 +147,18 @@ const overlay=document.getElementById("overlay");
 const boss=document.getElementById("boss");
 const hammer=document.getElementById("hammer");
 
-/* sounds (web audio – no files needed) */
-const ctx=new AudioContext();
-function sound(freq){
-  const o=ctx.createOscillator();
-  const g=ctx.createGain();
+/* sound memes */
+const ctx=new (window.AudioContext||window.webkitAudioContext)();
+function beep(freq){
+  const o=ctx.createOscillator(), g=ctx.createGain();
   o.frequency.value=freq;
-  o.connect(g);g.connect(ctx.destination);
+  o.connect(g); g.connect(ctx.destination);
   g.gain.setValueAtTime(.2,ctx.currentTime);
-  g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.3);
-  o.start();o.stop(ctx.currentTime+.3);
+  g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25);
+  o.start(); o.stop(ctx.currentTime+.25);
 }
 
-/* hammer follow */
+/* hammer */
 document.addEventListener("pointerdown",e=>{
   hammer.style.left=e.clientX+"px";
   hammer.style.top=e.clientY+"px";
@@ -172,24 +175,23 @@ function gameOver(){
 
 function bossMode(){
   boss.style.display="flex";
-  let hits=0;
-  sound(120);
-  const end=Date.now()+3000;
+  let end=Date.now()+3000;
 
-  const tap=()=>{
-    hits++;score++;scoreEl.textContent=score;
-    sound(400);
+  boss.onclick=()=>{
+    score++;
+    scoreEl.textContent=score;
+    beep(420);
+    boss.classList.add("shake");
+    setTimeout(()=>boss.classList.remove("shake"),150);
   };
 
-  boss.onclick=tap;
-
-  const interval=setInterval(()=>{
+  const timer=setInterval(()=>{
     if(Date.now()>end){
-      clearInterval(interval);
-      boss.style.display="none";
+      clearInterval(timer);
       boss.onclick=null;
-      spawnDelay=900;
-      visibleTime=700;
+      boss.style.display="none";
+      spawnDelay=Math.max(700,spawnDelay-200);
+      visibleTime=Math.max(600,visibleTime-150);
       loop();
     }
   },50);
@@ -201,13 +203,14 @@ function spawn(){
 
   const r=table.getBoundingClientRect();
   const h=holes[Math.floor(Math.random()*holes.length)];
+
   const hole=document.createElement("div");
   hole.className="hole";
   hole.style.left=(r.left+h.x*r.width-48)+"px";
   hole.style.top=(r.top+(1-h.y)*r.height-48)+"px";
 
   const isFake=Math.random()<fakeChance;
-  const isGood=isFake || Math.random()<.25;
+  const isGood=isFake||Math.random()<.25;
 
   const t=document.createElement("div");
   t.className="target";
@@ -216,18 +219,14 @@ function spawn(){
   t.onclick=e=>{
     e.stopPropagation();
     if(isGood){
-      sound(80);
+      beep(120);
       alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
       gameOver();
     }else{
       score++;
-      sound(600);
+      beep(620);
       scoreEl.textContent=score;
       if(score===5){ bossMode(); return; }
-      if(score>5){
-        spawnDelay=Math.max(600,spawnDelay-60);
-        visibleTime=Math.max(450,visibleTime-40);
-      }
       t.remove();
     }
   };
@@ -237,7 +236,7 @@ function spawn(){
   active=hole;
 
   requestAnimationFrame(()=>t.classList.add("show"));
-  setTimeout(()=>{ if(active===hole){hole.remove();} },visibleTime);
+  setTimeout(()=>{ if(active===hole) hole.remove(); },visibleTime);
 }
 
 function loop(){
@@ -247,13 +246,15 @@ function loop(){
 }
 
 document.getElementById("play").onclick=()=>{
-  score=0;scoreEl.textContent=0;
-  spawnDelay=1400;visibleTime=1000;
+  score=0;
+  scoreEl.textContent=0;
+  spawnDelay=1500;
+  visibleTime=1100;
   running=true;
   overlay.style.display="none";
   table.style.opacity=1;
   hud.style.display="block";
-  setTimeout(loop,800);
+  setTimeout(loop,900);
 };
 
 })();
