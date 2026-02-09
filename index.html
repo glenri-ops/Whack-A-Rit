@@ -1,48 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Whack-A-Rit</title>
-<style>
-  html,body{margin:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto;-webkit-tap-highlight-color:transparent; overscroll-behavior:none}
-  body{touch-action:manipulation}
-  #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Whack-A-Rit</title>
+  <style>
+    html,body{margin:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+    body{touch-action:manipulation}
+    #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
 
-  /* BG as <img> to avoid stretch; crop instead */
-  #bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;user-select:none;-webkit-user-drag:none}
+    /* Background: no stretch, crop instead */
+    #bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;user-select:none;-webkit-user-drag:none}
 
-  /* Table centered */
-  #table{
-    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    width:min(94vw,900px);height:auto;opacity:0;transition:opacity .2s;
-    z-index:1;user-select:none;-webkit-user-drag:none
-  }
+    /* Table centered */
+    #table{
+      position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+      width:min(94vw,900px);height:auto;opacity:0;transition:opacity .2s;
+      z-index:1;user-select:none;-webkit-user-drag:none
+    }
 
-  /* HUD hidden until game starts */
-  #hud{position:absolute;left:16px;right:16px;top:12px;display:none;gap:12px;z-index:5}
-  .pill{background:#00c853;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.25);font-weight:900}
+    /* HUD: hidden until Play */
+    #hud{position:absolute;left:16px;right:16px;top:12px;display:none;gap:12px;z-index:5}
+    .pill{
+      background:#00c853;color:#fff;border:1px solid rgba(255,255,255,.18);
+      border-radius:12px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.25);
+      font-weight:900
+    }
 
-  /* Start overlay */
-  #startOverlay{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;z-index:20;background:rgba(0,0,0,0.06)}
-  #play{background:#00c853;border:0;color:#fff;border-radius:18px;padding:18px 40px;font-size:22px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.35)}
-  #play:active{transform:translateY(1px)}
-  #status{color:rgba(255,255,255,.85);font-weight:800;text-align:center;max-width:420px;line-height:1.25}
-  #status small{display:block;color:rgba(255,255,255,.65);font-weight:800;margin-top:6px}
+    /* Start overlay */
+    #startOverlay{
+      position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;
+      align-items:center;justify-content:center;z-index:20;background:rgba(0,0,0,0.06)
+    }
+    #play{
+      background:#00c853;border:0;color:#fff;border-radius:18px;padding:18px 40px;
+      font-size:22px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.35)
+    }
+    #play:active{transform:translateY(1px)}
+    #status{color:rgba(255,255,255,.9);font-weight:900;text-align:center;max-width:460px;line-height:1.25}
+    #status small{display:block;color:rgba(255,255,255,.65);font-weight:800;margin-top:6px}
 
-  .hole{position:absolute;width:96px;height:96px;border-radius:50%;overflow:visible;pointer-events:auto;z-index:6}
-  .target{position:absolute;left:0;right:0;margin:auto;bottom:-44px;width:96px;height:96px;border-radius:50%;
-          background:#111;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;
-          opacity:0;transform:scale(.92);transition:transform .14s ease-out, opacity .08s ease-out, bottom .14s ease-out;
-          pointer-events:auto}
-  .target img{width:92px;height:92px;border-radius:50%;user-select:none;-webkit-user-drag:none}
-  .target.show{opacity:1;transform:scale(1);bottom:0}
-  .ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,255,255,.28);pointer-events:none}
-</style>
+    /* Targets */
+    .hole{position:absolute;width:96px;height:96px;border-radius:50%;overflow:visible;pointer-events:auto;z-index:6}
+    .target{
+      position:absolute;left:0;right:0;margin:auto;bottom:-44px;width:96px;height:96px;border-radius:50%;
+      background:#111;border:1px solid rgba(255,255,255,.2);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;transform:scale(.92);
+      transition:transform .14s ease-out, opacity .08s ease-out, bottom .14s ease-out;
+      pointer-events:auto
+    }
+    .target img{width:92px;height:92px;border-radius:50%;user-select:none;-webkit-user-drag:none}
+    .target.show{opacity:1;transform:scale(1);bottom:0}
+    .ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,255,255,.28);pointer-events:none}
+  </style>
 </head>
 <body>
 <div id="app">
-  <!-- IMPORTANT: images are in repo ROOT (as per your screenshot) -->
+  <!-- IMPORTANT: these files must be in the repo ROOT (as in your screenshot) -->
   <img id="bgImg" src="./bg.png" alt="bg" draggable="false"/>
   <img id="table" src="./table.png" alt="table" draggable="false"/>
 
@@ -59,77 +74,103 @@
 
 <script>
 (() => {
+  // ===== CONFIG =====
+  // Files in repo root:
+  const BG_SRC    = "./bg.png";
+  const TABLE_SRC = "./table.png";
+  const GOOD_SRC  = "./good.png"; // GOOD = avoid (tap = -1 point)
+  const BAD_SRC   = "./bad.png";  // BAD = hit (tap = +1 point)
+
+  // Timing (slower + more playable on phone)
+  const visibleMs = 900;          // target stays up
+  const spawnMin  = 900;          // min gap before next spawn
+  const spawnMax  = 1400;         // max gap before next spawn
+
+  // Chance of GOOD target
+  const goodChance = 0.30;        // 30% good, 70% bad
+
   // Hole centers (normalized in TABLE coordinates)
+  // (x,y) where x=0..1 left->right, y=0..1 bottom->top
   const holes = [
     {x:.20,y:.63},{x:.50,y:.64},{x:.80,y:.63},
     {x:.20,y:.40},{x:.50,y:.40},{x:.80,y:.40}
   ];
 
-  // Root-level images (exactly like your repo screenshot)
-  const BG_SRC    = "./bg.png";
-  const TABLE_SRC = "./table.png";
-  const GOOD_SRC  = "./good.png";
-  const BAD_SRC   = "./bad.png";
+  // ===== STATE =====
+  let score=0, lives=3, running=false;
+  let active=null;                // {hole, t, isGood}
+  let missTimer=null;
+  let spawnTimer=null;
 
-  const visibleMs = 700;
-  const spawnMin = 450, spawnMax = 850;
+  // ===== DOM =====
+  const table   = document.getElementById("table");
+  const scoreEl = document.getElementById("score");
+  const livesEl = document.getElementById("lives");
+  const hud     = document.getElementById("hud");
+  const overlay = document.getElementById("startOverlay");
+  const playBtn = document.getElementById("play");
+  const status  = document.getElementById("status");
 
-  let score=0, lives=3, running=false, active=null, missTimer=null, spawnTimer=null;
+  // Prevent iOS gesture/scroll stealing taps
+  document.addEventListener("gesturestart", e => e.preventDefault());
+  document.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
 
-  const bgImg   = document.getElementById('bgImg');
-  const table   = document.getElementById('table');
-  const scoreEl = document.getElementById('score');
-  const livesEl = document.getElementById('lives');
-  const hud     = document.getElementById('hud');
-  const overlay = document.getElementById('startOverlay');
-  const playBtn = document.getElementById('play');
-  const status  = document.getElementById('status');
-
-  // Stop iOS gesture/scroll quirks
-  document.addEventListener('gesturestart', e => e.preventDefault());
-  document.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
-
+  // ===== HELPERS =====
   function clampScore(){ if(score < 0) score = 0; }
-  function updateHUD(){ clampScore(); scoreEl.textContent=score; livesEl.textContent='●'.repeat(lives); }
+  function updateHUD(){
+    clampScore();
+    scoreEl.textContent = score;
+    livesEl.textContent = "●".repeat(lives);
+  }
 
   function clearTimers(){
-    if(missTimer) { clearTimeout(missTimer); missTimer=null; }
+    if(missTimer){ clearTimeout(missTimer); missTimer=null; }
     if(spawnTimer){ clearTimeout(spawnTimer); spawnTimer=null; }
   }
 
   function cleanup(){
     if(!active) return;
-    active.t.classList.remove('show');
+    active.t.classList.remove("show");
     const holeEl = active.hole;
     setTimeout(()=>holeEl.remove(), 140);
     active = null;
   }
 
   function endGame(){
-    running=false;
+    running = false;
     clearTimers();
     cleanup();
-    table.style.opacity=0;
-    hud.style.display='none';
-    overlay.style.display='flex';
+    table.style.opacity = 0;
+    hud.style.display = "none";
+    overlay.style.display = "flex";
     playBtn.disabled = false;
     playBtn.textContent = "Play";
-    status.innerนu = status; // keep overlay
+    status.innerHTML = "Game over.<small>Tap Play to restart.</small>";
     alert("Game Over");
   }
 
   function miss(){
-    if(!running) return;
+    // ONLY miss if a target is actually active
+    if(!running || !active) return;
+
+    clearTimeout(missTimer);
+    missTimer = null;
+
     lives--;
     cleanup();
     updateHUD();
-    if(lives<=0) endGame();
+    if(lives <= 0) endGame();
   }
 
   function hit(){
-    if(!active || !running) return;
+    if(!running || !active) return;
+
+    clearTimeout(missTimer);
+    missTimer = null;
+
     // Your rule: GOOD = -1 point, BAD = +1 point
     score += active.isGood ? -1 : 1;
+
     cleanup();
     updateHUD();
   }
@@ -145,77 +186,86 @@
   function spawn(){
     if(!running) return;
 
-    // if a target is still active when next spawn happens -> miss
+    // If previous target is still up when next spawn happens -> miss
     if(active) miss();
     if(!running) return;
 
     const r = table.getBoundingClientRect();
-    // Guard: if table isn't laid out yet, delay spawn (prevents instant game over)
+    // Guard: wait until table has real size (prevents instant game-over)
     if(r.width < 50 || r.height < 50){
-      spawnTimer = setTimeout(spawn, 120);
+      spawnTimer = setTimeout(spawn, 150);
       return;
     }
 
-    const i = Math.floor(Math.random()*holes.length);
-    const isGood = Math.random() < 0.3; // 30% GOOD
-
+    const i = Math.floor(Math.random() * holes.length);
+    const isGood = Math.random() < goodChance;
     const p = holePixel(i);
 
-    const hole=document.createElement('div');
-    hole.className='hole';
-    hole.style.left = (p.x - 48) + 'px';
-    hole.style.top  = (p.y - 48) + 'px';
+    const hole = document.createElement("div");
+    hole.className = "hole";
+    hole.style.left = (p.x - 48) + "px";
+    hole.style.top  = (p.y - 48) + "px";
 
-    const t=document.createElement('div');
-    t.className='target';
+    const t = document.createElement("div");
+    t.className = "target";
     t.innerHTML = '<div class="ring"></div><img src="' + (isGood ? GOOD_SRC : BAD_SRC) + '" />';
 
-    const tap = (e)=>{ e.preventDefault(); e.stopPropagation(); clearTimeout(missTimer); hit(); };
-    t.addEventListener('touchstart', tap, {passive:false});
-    t.addEventListener('touchend', tap, {passive:false});
-    t.addEventListener('pointerdown', tap);
-    t.addEventListener('click', tap);
+    // Robust tap handling for iPhone
+    const tap = (e)=>{ e.preventDefault(); e.stopPropagation(); hit(); };
+    t.addEventListener("touchstart", tap, {passive:false});
+    t.addEventListener("touchend", tap, {passive:false});
+    t.addEventListener("pointerdown", tap);
+    t.addEventListener("click", tap);
 
     hole.appendChild(t);
     document.body.appendChild(hole);
-    active={hole, t, isGood};
 
-    requestAnimationFrame(()=>t.classList.add('show'));
+    active = {hole, t, isGood};
 
-    missTimer = setTimeout(()=>{ cleanup(); miss(); }, visibleMs);
+    requestAnimationFrame(()=>t.classList.add("show"));
 
-    const delay = Math.floor(spawnMin + Math.random()*(spawnMax-spawnMin));
+    // Auto-miss after visible window
+    missTimer = setTimeout(()=>{ miss(); }, visibleMs);
+
+    // Schedule next spawn
+    const delay = Math.floor(spawnMin + Math.random() * (spawnMax - spawnMin));
     spawnTimer = setTimeout(spawn, delay);
   }
 
   function startGame(){
-    score=0; lives=3; running=true;
-    clearTimers(); cleanup();
+    score = 0; lives = 3;
+    running = true;
+
+    clearTimers();
+    cleanup();
     updateHUD();
-    hud.style.display='flex';
-    table.style.opacity=1;
-    overlay.style.display='none';
-    // start after a short delay to ensure layout is stable
-    setTimeout(spawn, 180);
+
+    hud.style.display = "flex";
+    table.style.opacity = 1;
+    overlay.style.display = "none";
+
+    // Delay so layout stabilizes
+    setTimeout(spawn, 220);
   }
 
-  // Preload images and only enable Play when everything loads
+  // ===== PRELOAD (ensures no broken icons + prevents instant game-over) =====
   const assets = [
     {name:"bg.png",    src:BG_SRC},
     {name:"table.png", src:TABLE_SRC},
     {name:"good.png",  src:GOOD_SRC},
-    {name:"bad.png",   src:BAD_SRC}
+    {name:"bad.png",   src:BAD_SRC},
   ];
 
   function preloadAll(){
-    let loaded = 0;
+    let done = 0;
     let failed = [];
     return new Promise((resolve) => {
       assets.forEach(a => {
         const img = new Image();
-        img.onload = () => { loaded++; if(loaded + failed.length === assets.length) resolve({failed}); };
-        img.onerror = () => { failed.push(a.name); if(loaded + failed.length === assets.length) resolve({failed}); };
-        img.src = a.src + "?v=" + Date.now(); // cache-bust Pages
+        img.onload = () => { done++; if(done + failed.length === assets.length) resolve({failed}); };
+        img.onerror = () => { failed.push(a.name); if(done + failed.length === assets.length) resolve({failed}); };
+        // Cache-bust GitHub Pages
+        img.src = a.src + "?v=" + Date.now();
       });
     });
   }
@@ -224,7 +274,9 @@
     if(failed.length){
       playBtn.disabled = true;
       playBtn.textContent = "Fix files";
-      status.innerHTML = "Images failed to load:<br><b>" + failed.join(", ") + "</b><small>Check repo file names (case-sensitive) and that they’re in the repo root.</small>";
+      status.innerHTML =
+        "Images failed to load:<br><b>" + failed.join(", ") + "</b>" +
+        "<small>Check file names in your repo root: bg.png, table.png, good.png, bad.png</small>";
       return;
     }
     playBtn.disabled = false;
@@ -232,15 +284,18 @@
     status.innerHTML = "Ready.<small>Tap Play to start.</small>";
   });
 
+  // Start: button + overlay tap
   const startTap = (e)=>{ e.preventDefault(); e.stopPropagation(); if(!playBtn.disabled) startGame(); };
-  playBtn.addEventListener('click', startTap);
-  playBtn.addEventListener('pointerdown', startTap);
-  playBtn.addEventListener('touchend', startTap, {passive:false});
-  overlay.addEventListener('click', startTap);
-  overlay.addEventListener('pointerdown', startTap);
-  overlay.addEventListener('touchend', startTap, {passive:false});
+  playBtn.addEventListener("click", startTap);
+  playBtn.addEventListener("pointerdown", startTap);
+  playBtn.addEventListener("touchend", startTap, {passive:false});
+  overlay.addEventListener("click", startTap);
+  overlay.addEventListener("pointerdown", startTap);
+  overlay.addEventListener("touchend", startTap, {passive:false});
 
-  window.addEventListener('resize', () => { if(active) cleanup(); });
+  // If device rotates/resizes, remove active target so it doesn't drift
+  window.addEventListener("resize", ()=>{ if(active) cleanup(); });
+
 })();
 </script>
 </body>
