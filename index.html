@@ -33,8 +33,9 @@
 </head>
 <body>
 <div id="app">
-  <img id="bgImg" src="assets/bg.png" alt="bg" draggable="false"/>
-  <img id="table" src="assets/table.png" alt="table" draggable="false"/>
+<img id="bgImg" src="bg.png">
+<img id="table" src="table.png">
+
 
   <div id="hud">
     <div class="pill">Score: <span id="score">0</span></div>
@@ -64,8 +65,9 @@
   const playBtn=document.getElementById('play');
 
   // Assets (file-based)
-  const GOOD_SRC = "assets/good.png";
-  const BAD_SRC  = "assets/bad.png";
+ const GOOD_SRC = "good.png";
+const BAD_SRC  = "bad.png";
+
 
   function clampScore(){ if(score < 0) score = 0; }
   function updateHUD(){ clampScore(); scoreEl.textContent=score; livesEl.textContent='●'.repeat(lives); }
