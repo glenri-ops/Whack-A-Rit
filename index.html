@@ -1,299 +1,512 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Whack-A-Rit</title>
-
 <style>
-html,body{
-  margin:0;height:100%;background:#000;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto;
-  -webkit-tap-highlight-color:transparent;
-  overscroll-behavior:none
-}
-body{touch-action:manipulation}
-#app{position:relative;width:100%;height:100%;overflow:hidden}
+  html,body{margin:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  body{touch-action:manipulation}
+  #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
 
-/* background */
-#bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  #table{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:min(94vw,900px);opacity:0;transition:.25s;z-index:1}
 
-/* table */
-#table{
-  position:absolute;left:50%;top:56%;
-  transform:translate(-50%,-50%);
-  width:min(94vw,900px);
-  opacity:0;transition:.25s
-}
+  /* Big score above table */
+  #hud{
+    position:absolute;left:50%;top:8%;
+    transform:translateX(-50%);
+    background:#00c853;color:#fff;
+    padding:14px 22px;border-radius:18px;
+    font-size:26px;font-weight:900;
+    display:none;z-index:10;
+    box-shadow:0 10px 26px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.18)
+  }
 
-/* SCORE */
-#hud{
-  position:absolute;left:50%;top:8%;
-  transform:translateX(-50%);
-  background:#00c853;color:#fff;
-  padding:14px 22px;border-radius:18px;
-  font-size:26px;font-weight:900;
-  display:none;z-index:10;
-  box-shadow:0 10px 26px rgba(0,0,0,.45)
-}
+  #overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;
+    align-items:center;justify-content:center;z-index:30;
+    background:rgba(0,0,0,.50)
+  }
+  #play{
+    background:#00c853;border:0;color:#fff;border-radius:18px;
+    padding:18px 40px;font-size:22px;font-weight:900;
+    box-shadow:0 10px 26px rgba(0,0,0,.35)
+  }
+  #play[disabled]{opacity:.6}
+  #status{color:#fff;font-weight:900;text-align:center;max-width:560px;line-height:1.25}
+  #status small{display:block;color:rgba(255,255,255,.7);font-weight:800;margin-top:6px}
 
-/* START OVERLAY */
-#overlay{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;
-  justify-content:center;align-items:center;
-  gap:12px;background:rgba(0,0,0,.45);z-index:20
-}
-#play{
-  background:#00c853;color:#fff;
-  border:none;border-radius:18px;
-  padding:18px 40px;font-size:22px;font-weight:900
-}
-#msg{color:#fff;font-weight:800;text-align:center}
+  /* targets */
+  .hole{position:absolute;width:96px;height:96px;z-index:6}
+  .target{
+    position:absolute;left:0;right:0;margin:auto;bottom:-40px;
+    width:96px;height:96px;border-radius:50%;
+    background:#111;display:flex;align-items:center;justify-content:center;
+    opacity:0;transform:scale(.9);transition:.15s;
+    border:1px solid rgba(255,255,255,.18)
+  }
+  .target.show{opacity:1;transform:scale(1);bottom:0}
+  .target img{width:92px;height:92px;border-radius:50%}
 
-/* holes */
-.hole{position:absolute;width:96px;height:96px}
-.target{
-  position:absolute;left:0;right:0;margin:auto;bottom:-40px;
-  width:96px;height:96px;border-radius:50%;
-  background:#111;display:flex;align-items:center;justify-content:center;
-  opacity:0;transform:scale(.9);transition:.15s
-}
-.target.show{opacity:1;transform:scale(1);bottom:0}
-.target img{width:92px;height:92px;border-radius:50%}
+  /* hammer (no external asset) */
+  #hammer{
+    position:absolute;z-index:999;pointer-events:none;display:none;
+    transform:translate(-50%,-50%) rotate(-35deg);
+    font-size:54px; filter:drop-shadow(0 10px 16px rgba(0,0,0,.45));
+  }
 
-/* hammer */
-#hammer{
-  position:absolute;width:80px;height:80px;
-  background:url("https://upload.wikimedia.org/wikipedia/commons/3/3a/Hammer_icon.svg") center/contain no-repeat;
-  pointer-events:none;display:none;z-index:999;
-  transform:translate(-50%,-50%) rotate(-45deg)
-}
+  /* Level 5 boss */
+  #boss5{
+    position:absolute;inset:0;display:none;z-index:60;
+    background:rgba(0,0,0,.68);align-items:center;justify-content:center;
+  }
+  #boss5 img{
+    width:min(78vw,560px);
+    border-radius:0;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);
+    will-change:transform;
+  }
 
-/* MERCY BOSS */
-#mercy{
-  position:absolute;inset:0;
-  display:none;z-index:50;
-  background:rgba(0,0,0,.78)
-}
-#mercyCenter{
-  position:absolute;left:50%;top:50%;
-  transform:translate(-50%,-50%);
-  text-align:center;color:#fff
-}
-#mercyCenter img{width:min(70vw,420px)}
-#mercyText{margin-top:12px;font-size:22px;font-weight:900}
+  /* Level 30 mercy */
+  #mercy{
+    position:absolute;inset:0;display:none;z-index:70;
+    background:rgba(0,0,0,.78);
+  }
+  #mercyCenter{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    text-align:center;color:#fff;
+  }
+  #mercyCenter img{width:min(70vw,420px)}
+  #mercyText{margin-top:12px;font-size:22px;font-weight:900}
+  #smallRitos{
+    position:absolute;width:72px;height:72px;display:none;cursor:pointer;
+    border-radius:50%; overflow:hidden;
+    box-shadow:0 14px 30px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.2)
+  }
+  #smallRitos img{width:100%;height:100%;border-radius:50%}
 
-/* moving Ritos */
-#smallRitos{
-  position:absolute;width:72px;height:72px;
-  display:none;cursor:pointer;
-  border-radius:50%;
-  box-shadow:0 14px 30px rgba(0,0,0,.45)
-}
-#smallRitos img{width:100%;height:100%;border-radius:50%}
+  .shake{animation:shake .14s}
+  @keyframes shake{
+    0%{transform:translate(0)}
+    25%{transform:translate(-10px,7px)}
+    50%{transform:translate(9px,-7px)}
+    75%{transform:translate(-7px,7px)}
+    100%{transform:translate(0)}
+  }
 </style>
 </head>
-
 <body>
 <div id="app">
+  <img id="bg" src="./bg.png" alt="bg">
+  <img id="table" src="./table.png" alt="table">
 
-<img id="bg" src="./bg.png">
-<img id="table" src="./table.png">
+  <div id="hud">Score: <span id="score">0</span></div>
 
-<div id="hud">Score: <span id="score">0</span></div>
-
-<div id="overlay">
-  <button id="play">Play</button>
-  <div id="msg">Hit Ritos for points. Avoid Tiga 😈</div>
-</div>
-
-<!-- MERCY BOSS -->
-<div id="mercy">
-  <div id="mercyCenter">
-    <img src="./mercy.png">
-    <div id="mercyText">Don’t hit me… 🥺</div>
+  <div id="overlay">
+    <button id="play" disabled>Loading…</button>
+    <div id="status">Loading…<small>Needed in repo root: bg.png, table.png, good.png, bad.png, boss.png, mercy.png</small></div>
   </div>
-  <div id="smallRitos">
-    <img src="./bad.png">
-  </div>
-</div>
 
-<div id="hammer"></div>
+  <!-- Level 5 boss -->
+  <div id="boss5">
+    <img id="boss5Img" src="./boss.png" alt="boss5">
+  </div>
+
+  <!-- Level 30 mercy -->
+  <div id="mercy">
+    <div id="mercyCenter">
+      <img src="./mercy.png" alt="mercy">
+      <div id="mercyText">Don’t hit me… 🥺</div>
+    </div>
+    <div id="smallRitos"><img src="./bad.png" alt="ritos"></div>
+  </div>
+
+  <div id="hammer">🔨</div>
+</div>
 
 <script>
 (() => {
-
-const GOOD="./good.png";
-const BAD ="./bad.png";
-
-const holes=[
-  {x:.2,y:.62},{x:.5,y:.63},{x:.8,y:.62},
-  {x:.2,y:.4},{x:.5,y:.4},{x:.8,y:.4}
-];
-
-let score=0;
-let running=false;
-let active=null;
-let loopTimer=null;
-
-let mercyOrbitTimer=null;
-let mercyStartTime=0;
-
-const table=document.getElementById("table");
-const hud=document.getElementById("hud");
-const scoreEl=document.getElementById("score");
-const overlay=document.getElementById("overlay");
-const mercy=document.getElementById("mercy");
-const smallRitos=document.getElementById("smallRitos");
-const hammer=document.getElementById("hammer");
-
-/* hammer */
-document.addEventListener("pointerdown",e=>{
-  hammer.style.left=e.clientX+"px";
-  hammer.style.top=e.clientY+"px";
-  hammer.style.display="block";
-});
-document.addEventListener("pointerup",()=>hammer.style.display="none");
-
-/* helpers */
-function stopLoop(){
-  if(loopTimer){ clearTimeout(loopTimer); loopTimer=null; }
-}
-function removeActive(){
-  if(active){ active.remove(); active=null; }
-}
-function gameOver(){
-  running=false;
-  stopLoop();
-  removeActive();
-  stopMercyOrbit();
-  mercy.style.display="none";
-  overlay.style.display="flex";
-  table.style.opacity=0;
-  hud.style.display="none";
-}
-
-/* MERCY ORBIT MOTION */
-function startMercyOrbit(){
-  const cx = innerWidth * 0.5;
-  const cy = innerHeight * 0.5;
-  const radius = 120;       // distance from mercy
-  const speed = 0.0025;     // angular speed
-
-  mercyStartTime = performance.now();
-  smallRitos.style.display="block";
-
-  function orbit(){
-    const t = (performance.now() - mercyStartTime);
-    const ang = t * speed;
-
-    const x = cx + Math.cos(ang) * radius;
-    const y = cy + Math.sin(ang) * radius;
-
-    smallRitos.style.left = x + "px";
-    smallRitos.style.top  = y + "px";
-
-    mercyOrbitTimer = requestAnimationFrame(orbit);
-  }
-  orbit();
-}
-
-function stopMercyOrbit(){
-  if(mercyOrbitTimer){
-    cancelAnimationFrame(mercyOrbitTimer);
-    mercyOrbitTimer=null;
-  }
-  smallRitos.style.display="none";
-}
-
-/* LEVEL 30 MERCY BOSS */
-function mercyBoss(){
-  running=false;
-  stopLoop();
-  removeActive();
-
-  mercy.style.display="block";
-  startMercyOrbit();
-
-  smallRitos.onclick=()=>{
-    score+=5;
-    scoreEl.textContent=score;
-    endMercy();
+  // ===== Assets (repo root) =====
+  const SRC = {
+    bg: "./bg.png",
+    table: "./table.png",
+    good: "./good.png",   // Tiga
+    bad: "./bad.png",     // Ritos
+    boss5: "./boss.png",  // Level 5 spam boss
+    mercy: "./mercy.png"  // Level 30 mercy big image
   };
 
-  mercy.onclick=e=>{
-    if(e.target.closest("#smallRitos")) return;
-    alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
-    gameOver();
-  };
+  // ===== Holes on table =====
+  const holes = [
+    {x:.20,y:.62},{x:.50,y:.63},{x:.80,y:.62},
+    {x:.20,y:.40},{x:.50,y:.40},{x:.80,y:.40}
+  ];
 
-  setTimeout(endMercy,8000);
-}
+  // ===== State =====
+  let score = 0;
+  let running = false;
+  let activeHole = null;
+  let loopTimer = null;
+  let despawnTimer = null;
+  let inBoss = false;
 
-function endMercy(){
-  stopMercyOrbit();
-  mercy.style.display="none";
-  mercy.onclick=null;
-  running=true;
-  loop();
-}
+  // pacing
+  let spawnDelay = 1700; // starts slow
+  let visibleTime = 1250;
+  let goodChance = 0.22;
+  let fakeChance = 0.22;
 
-/* spawn */
-function spawn(){
-  if(!running) return;
-  removeActive();
+  // mercy orbit
+  let mercyRAF = null;
+  let mercyStartT = 0;
 
-  const r=table.getBoundingClientRect();
-  const h=holes[Math.floor(Math.random()*holes.length)];
+  // DOM
+  const table = document.getElementById("table");
+  const hud = document.getElementById("hud");
+  const scoreEl = document.getElementById("score");
+  const overlay = document.getElementById("overlay");
+  const playBtn = document.getElementById("play");
+  const statusEl = document.getElementById("status");
+  const hammer = document.getElementById("hammer");
 
-  const hole=document.createElement("div");
-  hole.className="hole";
-  hole.style.left=(r.left+h.x*r.width-48)+"px";
-  hole.style.top=(r.top+(1-h.y)*r.height-48)+"px";
+  const boss5 = document.getElementById("boss5");
+  const boss5Img = document.getElementById("boss5Img");
 
-  const isGood=Math.random()<.25;
-  const t=document.createElement("div");
-  t.className="target";
-  t.innerHTML=`<img src="${isGood?GOOD:BAD}">`;
+  const mercy = document.getElementById("mercy");
+  const smallRitos = document.getElementById("smallRitos");
 
-  t.onclick=()=>{
-    if(isGood){
+  // prevent iOS scroll stealing taps
+  document.addEventListener("gesturestart", e => e.preventDefault());
+  document.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
+
+  // Hammer visual
+  document.addEventListener("pointerdown", (e) => {
+    hammer.style.left = e.clientX + "px";
+    hammer.style.top = e.clientY + "px";
+    hammer.style.display = "block";
+  });
+  document.addEventListener("pointerup", () => hammer.style.display = "none");
+
+  // Sound memes (simple)
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = AudioCtx ? new AudioCtx() : null;
+  function beep(freq){
+    if(!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.frequency.value = freq;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.22, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.22);
+    o.start(); o.stop(audioCtx.currentTime + 0.22);
+  }
+
+  function hardStopTimers(){
+    if(loopTimer) { clearTimeout(loopTimer); loopTimer = null; }
+    if(despawnTimer){ clearTimeout(despawnTimer); despawnTimer = null; }
+  }
+  function removeActive(){
+    if(activeHole){ activeHole.remove(); activeHole = null; }
+  }
+  function setScore(n){
+    score = n;
+    scoreEl.textContent = String(score);
+  }
+
+  function gameOver(){
+    running = false;
+    inBoss = false;
+    hardStopTimers();
+    removeActive();
+
+    stopMercyOrbit();
+    boss5.style.display = "none";
+    mercy.style.display = "none";
+
+    overlay.style.display = "flex";
+    table.style.opacity = 0;
+    hud.style.display = "none";
+    playBtn.disabled = false;
+    playBtn.textContent = "Play";
+    statusEl.innerHTML = "Game over.<small>Tap Play to restart.</small>";
+  }
+
+  // ===== Level 5 Boss: 3 seconds spam hits, moving left-right =====
+  function startBoss5(){
+    inBoss = true;
+    running = false;
+    hardStopTimers();
+    removeActive();
+
+    boss5.style.display = "flex";
+
+    const start = Date.now();
+    const duration = 3000;
+    const amp = Math.min(window.innerWidth * 0.22, 170);
+
+    const moveTimer = setInterval(() => {
+      const t = (Date.now() - start) / 1000;
+      const x = Math.sin(t * 6.0) * amp;
+      boss5Img.style.transform = `translateX(${x}px)`;
+
+      if(Date.now() - start >= duration){
+        clearInterval(moveTimer);
+        boss5Img.style.transform = "translateX(0)";
+        boss5.onclick = null;
+        boss5.style.display = "none";
+        inBoss = false;
+
+        // Slow down after boss
+        spawnDelay = 1250;
+        visibleTime = 950;
+
+        running = true;
+        loop();
+      }
+    }, 16);
+
+    boss5.onclick = () => {
+      setScore(score + 1);
+      beep(430);
+      boss5.classList.add("shake");
+      setTimeout(()=>boss5.classList.remove("shake"), 140);
+    };
+  }
+
+  // ===== Level 30 Mercy: 8 seconds, small Ritos orbits near Mercy =====
+  function startMercy30(){
+    inBoss = true;
+    running = false;
+    hardStopTimers();
+    removeActive();
+
+    mercy.style.display = "block";
+    smallRitos.style.display = "none";
+
+    // show orbiting Ritos after 1s (tighter danger)
+    setTimeout(() => {
+      smallRitos.style.display = "block";
+      mercyStartT = performance.now();
+      startMercyOrbit();
+    }, 1000);
+
+    smallRitos.onclick = (e) => {
+      e.stopPropagation();
+      setScore(score + 5);
+      beep(650);
+      endMercy30();
+    };
+
+    mercy.onclick = (e) => {
+      if(e.target.closest("#smallRitos")) return;
+      beep(120);
       alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
       gameOver();
-    }else{
-      score++;
-      scoreEl.textContent=score;
-      if(score===30){ mercyBoss(); return; }
-      removeActive();
+    };
+
+    const endAt = Date.now() + 8000;
+    const t = setInterval(() => {
+      if(Date.now() >= endAt){
+        clearInterval(t);
+        endMercy30();
+      }
+    }, 50);
+
+    function endMercy30(){
+      if(!inBoss) return;
+      inBoss = false;
+      mercy.onclick = null;
+      smallRitos.onclick = null;
+      stopMercyOrbit();
+      mercy.style.display = "none";
+      smallRitos.style.display = "none";
+
+      running = true;
+      loop();
     }
-  };
+  }
 
-  hole.appendChild(t);
-  document.body.appendChild(hole);
-  active=hole;
+  function startMercyOrbit(){
+    const cx = innerWidth * 0.5;
+    const cy = innerHeight * 0.5;
+    const minR = 80;
+    const maxR = 135;
 
-  requestAnimationFrame(()=>t.classList.add("show"));
-  setTimeout(()=>{ if(active===hole) removeActive(); },1100);
-}
+    function frame(){
+      const t = performance.now() - mercyStartT;
 
-/* loop */
-function loop(){
-  if(!running) return;
-  spawn();
-  loopTimer=setTimeout(loop,1300);
-}
+      // orbit + slight radius pulse to make it harder
+      const ang = t * 0.0052;
+      const pulse = (Math.sin(t * 0.004) + 1) * 0.5; // 0..1
+      const r = minR + pulse * (maxR - minR);
 
-/* start */
-document.getElementById("play").onclick=()=>{
-  score=0;
-  scoreEl.textContent=0;
-  running=true;
-  overlay.style.display="none";
-  table.style.opacity=1;
-  hud.style.display="block";
-  setTimeout(loop,1200);
-};
+      let x = cx + Math.cos(ang) * r;
+      let y = cy + Math.sin(ang) * r;
+
+      // keep in screen bounds
+      x = Math.max(30, Math.min(innerWidth - 30, x));
+      y = Math.max(30, Math.min(innerHeight - 30, y));
+
+      smallRitos.style.left = x + "px";
+      smallRitos.style.top  = y + "px";
+
+      mercyRAF = requestAnimationFrame(frame);
+    }
+    stopMercyOrbit();
+    mercyRAF = requestAnimationFrame(frame);
+  }
+
+  function stopMercyOrbit(){
+    if(mercyRAF){
+      cancelAnimationFrame(mercyRAF);
+      mercyRAF = null;
+    }
+  }
+
+  // ===== Spawning =====
+  function holePixel(i){
+    const r = table.getBoundingClientRect();
+    return {
+      x: r.left + holes[i].x * r.width,
+      y: r.top + (1 - holes[i].y) * r.height
+    };
+  }
+
+  function spawn(){
+    if(!running || inBoss) return;
+
+    removeActive();
+
+    const r = table.getBoundingClientRect();
+    if(r.width < 60 || r.height < 60){
+      loopTimer = setTimeout(loop, 120);
+      return;
+    }
+
+    const idx = Math.floor(Math.random() * holes.length);
+    const p = holePixel(idx);
+
+    const hole = document.createElement("div");
+    hole.className = "hole";
+    hole.style.left = (p.x - 48) + "px";
+    hole.style.top  = (p.y - 48) + "px";
+
+    const isFake = Math.random() < fakeChance;
+    const isGood = isFake || (Math.random() < goodChance);
+
+    const t = document.createElement("div");
+    t.className = "target";
+    t.innerHTML = `<img src="${isGood ? SRC.good : SRC.bad}">`;
+
+    t.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if(!running || inBoss) return;
+
+      if(isGood){
+        beep(120);
+        alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
+        gameOver();
+        return;
+      }
+
+      setScore(score + 1);
+      beep(620);
+      removeActive();
+
+      // milestones
+      if(score === 5){
+        startBoss5();
+        return;
+      }
+      if(score === 30){
+        startMercy30();
+        return;
+      }
+
+      // gentle difficulty ramp after 5
+      if(score > 5){
+        spawnDelay = Math.max(900, spawnDelay - 35);
+        visibleTime = Math.max(650, visibleTime - 20);
+        fakeChance = Math.min(0.30, fakeChance + 0.002);
+      }
+    }, {passive:false});
+
+    hole.appendChild(t);
+    document.body.appendChild(hole);
+    activeHole = hole;
+
+    requestAnimationFrame(() => t.classList.add("show"));
+
+    despawnTimer = setTimeout(() => {
+      if(activeHole === hole) removeActive();
+    }, visibleTime);
+  }
+
+  function loop(){
+    if(!running || inBoss) return;
+    spawn();
+    loopTimer = setTimeout(loop, spawnDelay);
+  }
+
+  // ===== Preload to avoid “empty icons” =====
+  async function preloadAll(){
+    const entries = Object.entries(SRC);
+    const failed = [];
+    await Promise.all(entries.map(([k, src]) => new Promise((res) => {
+      const img = new Image();
+      img.onload = () => res();
+      img.onerror = () => { failed.push(src); res(); };
+      img.src = src + "?v=" + Date.now();
+    })));
+    return failed;
+  }
+
+  // Start
+  playBtn.addEventListener("click", async () => {
+    if(audioCtx && audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch {} }
+
+    setScore(0);
+    running = true;
+    inBoss = false;
+
+    hardStopTimers();
+    removeActive();
+    stopMercyOrbit();
+    boss5.style.display = "none";
+    mercy.style.display = "none";
+
+    spawnDelay = 1700;
+    visibleTime = 1250;
+    goodChance = 0.22;
+    fakeChance = 0.22;
+
+    overlay.style.display = "none";
+    table.style.opacity = 1;
+    hud.style.display = "block";
+
+    setTimeout(loop, 1200);
+  });
+
+  // initial boot
+  (async () => {
+    const failed = await preloadAll();
+    if(failed.length){
+      playBtn.disabled = true;
+      playBtn.textContent = "Fix files";
+      statusEl.innerHTML =
+        "Images failed to load:<small style='display:block;margin-top:8px;opacity:.85'>" +
+        failed.map(s => s.replace("./","")).join(", ") +
+        "</small><small>Check names exactly (lowercase) in repo root.</small>";
+      return;
+    }
+    playBtn.disabled = false;
+    playBtn.textContent = "Play";
+    statusEl.innerHTML = "Ready.<small>Hit Ritos for points. If you hit Tiga: game over.</small>";
+  })();
 
 })();
 </script>
