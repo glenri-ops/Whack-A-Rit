@@ -23,7 +23,6 @@ body{touch-action:manipulation}
   opacity:0;transition:.25s
 }
 
-/* HUD */
 #hud{
   position:absolute;left:50%;top:8%;
   transform:translateX(-50%);
@@ -33,7 +32,6 @@ body{touch-action:manipulation}
   display:none;z-index:10
 }
 
-/* Overlay */
 #overlay{
   position:absolute;inset:0;
   display:flex;flex-direction:column;
@@ -47,53 +45,35 @@ body{touch-action:manipulation}
 }
 #msg{color:#fff;font-weight:800}
 
-/* holes */
-.hole{position:absolute;width:96px;height:96px}
-.target{
-  position:absolute;left:0;right:0;margin:auto;bottom:-40px;
-  width:96px;height:96px;border-radius:50%;
-  background:#111;display:flex;align-items:center;justify-content:center;
-  opacity:0;transform:scale(.9);transition:.15s
-}
-.target.show{opacity:1;transform:scale(1);bottom:0}
-.target img{width:92px;height:92px;border-radius:50%}
-
-/* hammer */
-#hammer{
-  position:absolute;font-size:54px;
-  pointer-events:none;display:none;z-index:999;
-  transform:translate(-50%,-50%) rotate(-35deg)
-}
-
-/* Level 5 boss */
-#boss5{
+/* ---------- LEVEL 40 ---------- */
+#dark40{
   position:absolute;inset:0;
-  display:none;z-index:40;
-  background:rgba(0,0,0,.7);
+  background:#000;
+  display:none;z-index:80;
   align-items:center;justify-content:center
 }
-#boss5 img{width:min(80vw,520px)}
+#dark40 img{
+  width:min(70vw,420px)
+}
 
-/* Level 30 mercy */
-#mercy{
+#emojiChaos{
   position:absolute;inset:0;
-  display:none;z-index:50;
-  background:rgba(0,0,0,.78)
+  display:none;z-index:90;
+  background:rgba(0,0,0,.92);
 }
-#mercyCenter{
-  position:absolute;left:50%;top:50%;
-  transform:translate(-50%,-50%);
-  text-align:center;color:#fff
-}
-#mercyCenter img{width:min(70vw,420px)}
-#mercyText{margin-top:12px;font-size:22px;font-weight:900}
 
-#smallRitos{
-  position:absolute;width:70px;height:70px;
-  display:none;cursor:pointer;
-  border-radius:50%;
+.emoji{
+  position:absolute;
+  font-size:38px;
+  cursor:pointer;
+  user-select:none;
+  animation: jitter 0.6s infinite alternate;
 }
-#smallRitos img{width:100%;height:100%;border-radius:50%}
+
+@keyframes jitter{
+  from{transform:translate(-2px,-2px)}
+  to{transform:translate(2px,2px)}
+}
 </style>
 </head>
 
@@ -110,189 +90,118 @@ body{touch-action:manipulation}
   <div id="msg">Hit Ritos for points. Avoid Tiga 😈</div>
 </div>
 
-<!-- Level 5 boss -->
-<div id="boss5">
-  <img src="./boss.png">
+<!-- LEVEL 40 DARK IMAGE -->
+<div id="dark40">
+  <img src="./level40.png">
 </div>
 
-<!-- Level 30 mercy -->
-<div id="mercy">
-  <div id="mercyCenter">
-    <img src="./mercy.png">
-    <div id="mercyText">Don’t hit me… 🥺</div>
-  </div>
-  <div id="smallRitos">
-    <img src="./bad.png">
-  </div>
-</div>
+<!-- EMOJI CHAOS -->
+<div id="emojiChaos"></div>
 
-<div id="hammer">🔨</div>
+</div>
 
 <script>
 (() => {
 
-const GOOD="./good.png";
-const BAD ="./bad.png";
+let score=0;
+let running=false;
+let inBonus=false;
 
-const holes=[
-  {x:.2,y:.62},{x:.5,y:.63},{x:.8,y:.62},
-  {x:.2,y:.4},{x:.5,y:.4},{x:.8,y:.4}
-];
-
-let score=0,running=false,active=null,timer=null;
-let inBoss=false;
-
-/* DOM */
-const table=document.getElementById("table");
-const hud=document.getElementById("hud");
 const scoreEl=document.getElementById("score");
+const hud=document.getElementById("hud");
 const overlay=document.getElementById("overlay");
-const mercy=document.getElementById("mercy");
-const smallRitos=document.getElementById("smallRitos");
-const boss5=document.getElementById("boss5");
-const hammer=document.getElementById("hammer");
+const table=document.getElementById("table");
 
-/* hammer */
-document.addEventListener("pointerdown",e=>{
-  hammer.style.left=e.clientX+"px";
-  hammer.style.top=e.clientY+"px";
-  hammer.style.display="block";
-});
-document.addEventListener("pointerup",()=>hammer.style.display="none");
+const dark40=document.getElementById("dark40");
+const emojiChaos=document.getElementById("emojiChaos");
 
 function gameOver(){
-  running=false;inBoss=false;
+  running=false;
+  inBonus=false;
+  dark40.style.display="none";
+  emojiChaos.style.display="none";
   overlay.style.display="flex";
   table.style.opacity=0;
   hud.style.display="none";
-  mercy.style.display="none";
-  boss5.style.display="none";
 }
 
-/* Level 5 bonus */
-function level5(){
-  inBoss=true;running=false;
-  boss5.style.display="flex";
-  let end=Date.now()+3000;
-  boss5.onclick=()=>{
-    score++;scoreEl.textContent=score;
-  };
-  const move=setInterval(()=>{
-    boss5.firstElementChild.style.transform=
-      `translateX(${Math.sin(Date.now()/200)*120}px)`;
-    if(Date.now()>end){
-      clearInterval(move);
-      boss5.style.display="none";
-      inBoss=false;running=true;
-      loop();
-    }
-  },16);
+function startLevel40(){
+  inBonus=true;
+  running=false;
+
+  // PHASE 1 — DARK IMAGE
+  dark40.style.display="flex";
+
+  setTimeout(()=>{
+    dark40.style.display="none";
+    startEmojiChaos();
+  },4000);
 }
 
-/* Level 30 Mercy – FIXED MOVEMENT */
-function level30(){
-  inBoss=true;running=false;
-  mercy.style.display="block";
-  smallRitos.style.display="block";
+function startEmojiChaos(){
+  emojiChaos.innerHTML="";
+  emojiChaos.style.display="block";
 
-  let x=Math.random()*innerWidth;
-  let y=Math.random()*innerHeight;
-  let vx=(Math.random()-.5)*6;
-  let vy=(Math.random()-.5)*6;
+  const emojis = ["😈","🤡","💀","🔥","🍕","👀","🧠","💣","🐸","👻","😵‍💫","🦴","🧟","🥴"];
+  const dog = "🐶";
 
-  function move(){
-    if(!inBoss) return;
+  const total = 90; // hilariously plenty
 
-    x+=vx; y+=vy;
-
-    if(x<20||x>innerWidth-90) vx*=-1;
-    if(y<20||y>innerHeight-90) vy*=-1;
-
-    // occasionally pass near Tiga
-    if(Math.random()<0.01){
-      const cx=innerWidth/2;
-      const cy=innerHeight/2;
-      vx+=(cx-x)*0.0008;
-      vy+=(cy-y)*0.0008;
-    }
-
-    smallRitos.style.left=x+"px";
-    smallRitos.style.top=y+"px";
-
-    requestAnimationFrame(move);
+  // create many wrong emojis
+  for(let i=0;i<total;i++){
+    const e=document.createElement("div");
+    e.className="emoji";
+    e.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    e.style.left=Math.random()*90+"%";
+    e.style.top=Math.random()*90+"%";
+    e.onclick=()=>gameOver();
+    emojiChaos.appendChild(e);
   }
-  move();
 
-  smallRitos.onclick=e=>{
+  // add ONE dog
+  const dogEl=document.createElement("div");
+  dogEl.className="emoji";
+  dogEl.textContent=dog;
+  dogEl.style.left=Math.random()*85+"%";
+  dogEl.style.top=Math.random()*85+"%";
+  dogEl.onclick=(e)=>{
     e.stopPropagation();
-    score+=5;scoreEl.textContent=score;
-    endLevel30();
+    score+=10;
+    scoreEl.textContent=score;
+    endEmojiChaos();
   };
+  emojiChaos.appendChild(dogEl);
 
-  mercy.onclick=()=>{
-    alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
-    gameOver();
-  };
-
-  setTimeout(endLevel30,8000);
+  // timeout = fail
+  setTimeout(()=>gameOver(),5000);
 }
 
-function endLevel30(){
-  inBoss=false;
-  mercy.style.display="none";
+function endEmojiChaos(){
+  emojiChaos.style.display="none";
+  inBonus=false;
   running=true;
-  loop();
-}
-
-/* spawn */
-function spawn(){
-  if(!running||inBoss) return;
-  if(active) active.remove();
-
-  const r=table.getBoundingClientRect();
-  const h=holes[Math.floor(Math.random()*holes.length)];
-
-  const hole=document.createElement("div");
-  hole.className="hole";
-  hole.style.left=(r.left+h.x*r.width-48)+"px";
-  hole.style.top=(r.top+(1-h.y)*r.height-48)+"px";
-
-  const isGood=Math.random()<.25;
-  const t=document.createElement("div");
-  t.className="target";
-  t.innerHTML=`<img src="${isGood?GOOD:BAD}">`;
-
-  t.onclick=()=>{
-    if(isGood){gameOver();}
-    else{
-      score++;scoreEl.textContent=score;
-      if(score===5){level5();return;}
-      if(score===30){level30();return;}
-      t.remove();
-    }
-  };
-
-  hole.appendChild(t);
-  document.body.appendChild(hole);
-  active=hole;
-
-  requestAnimationFrame(()=>t.classList.add("show"));
-  setTimeout(()=>{if(active===hole) hole.remove();},1200);
-}
-
-function loop(){
-  spawn();
-  timer=setTimeout(loop,1300);
 }
 
 document.getElementById("play").onclick=()=>{
-  score=0;scoreEl.textContent=0;
-  running=true;inBoss=false;
+  score=0;
+  scoreEl.textContent=0;
+  running=true;
   overlay.style.display="none";
   table.style.opacity=1;
   hud.style.display="block";
-  loop();
+
+  // DEBUG trigger (remove later)
+  // setTimeout(startLevel40,2000);
 };
+
+// simulate reaching 40 for now
+document.addEventListener("keydown",e=>{
+  if(e.key==="4"){
+    score=40;
+    scoreEl.textContent=40;
+    startLevel40();
+  }
+});
 
 })();
 </script>
