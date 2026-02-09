@@ -1,293 +1,260 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Whack-A-Rit</title>
-  <style>
-    html,body{margin:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
-    body{touch-action:manipulation}
-    #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Whack-A-Rit</title>
 
-    /* Background: crop, don't stretch */
-    #bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;user-select:none;-webkit-user-drag:none}
+<style>
+html,body{
+  margin:0;height:100%;background:#000;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none
+}
+body{touch-action:manipulation}
+#app{position:relative;width:100%;height:100%;overflow:hidden}
 
-    /* Table centered */
-    #table{
-      position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-      width:min(94vw,900px);height:auto;opacity:0;transition:opacity .2s;
-      z-index:1;user-select:none;-webkit-user-drag:none
-    }
+/* background */
+#bg{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;z-index:0
+}
 
-    /* HUD: hidden until Play */
-    #hud{position:absolute;left:16px;right:16px;top:12px;display:none;gap:12px;z-index:5}
-    .pill{
-      background:#00c853;color:#fff;border:1px solid rgba(255,255,255,.18);
-      border-radius:12px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.25);
-      font-weight:900
-    }
+/* table */
+#table{
+  position:absolute;left:50%;top:55%;
+  transform:translate(-50%,-50%);
+  width:min(94vw,900px);
+  opacity:0;transition:.3s;
+  z-index:1
+}
 
-    /* Start overlay */
-    #overlay{
-      position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;
-      align-items:center;justify-content:center;z-index:20;background:rgba(0,0,0,0.06)
-    }
-    #play{
-      background:#00c853;border:0;color:#fff;border-radius:18px;padding:18px 40px;
-      font-size:22px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.35)
-    }
-    #play:active{transform:translateY(1px)}
-    #status{color:rgba(255,255,255,.92);font-weight:900;text-align:center;max-width:520px;line-height:1.25}
-    #status small{display:block;color:rgba(255,255,255,.65);font-weight:800;margin-top:6px}
+/* HUD */
+#hud{
+  position:absolute;top:14px;left:14px;
+  background:#00c853;color:#fff;
+  padding:10px 14px;border-radius:12px;
+  font-weight:900;display:none;z-index:10
+}
 
-    /* Targets */
-    .hole{position:absolute;width:96px;height:96px;border-radius:50%;overflow:visible;pointer-events:auto;z-index:6}
-    .target{
-      position:absolute;left:0;right:0;margin:auto;bottom:-44px;width:96px;height:96px;border-radius:50%;
-      background:#111;border:1px solid rgba(255,255,255,.2);
-      display:flex;align-items:center;justify-content:center;
-      opacity:0;transform:scale(.92);
-      transition:transform .14s ease-out, opacity .08s ease-out, bottom .14s ease-out;
-      pointer-events:auto
-    }
-    .target img{width:92px;height:92px;border-radius:50%;user-select:none;-webkit-user-drag:none}
-    .target.show{opacity:1;transform:scale(1);bottom:0}
-    .ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,255,255,.28);pointer-events:none}
-  </style>
+/* overlay */
+#overlay{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  gap:12px;z-index:20;
+  background:rgba(0,0,0,.4)
+}
+#play{
+  background:#00c853;color:#fff;
+  border:none;border-radius:18px;
+  padding:18px 40px;
+  font-size:22px;font-weight:900
+}
+#msg{color:#fff;font-weight:800;text-align:center}
+
+/* holes & targets */
+.hole{
+  position:absolute;width:96px;height:96px;
+  border-radius:50%;z-index:5
+}
+.target{
+  position:absolute;left:0;right:0;
+  margin:auto;bottom:-40px;
+  width:96px;height:96px;
+  border-radius:50%;
+  background:#111;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transform:scale(.9);
+  transition:.15s;
+}
+.target.show{opacity:1;transform:scale(1);bottom:0}
+.target img{width:92px;height:92px;border-radius:50%}
+
+/* hammer */
+#hammer{
+  position:absolute;
+  width:80px;height:80px;
+  background:url("https://upload.wikimedia.org/wikipedia/commons/3/3a/Hammer_icon.svg") center/contain no-repeat;
+  pointer-events:none;
+  transform:translate(-50%,-50%) rotate(-45deg);
+  display:none;z-index:999
+}
+
+/* boss */
+#boss{
+  position:absolute;inset:0;
+  display:none;align-items:center;justify-content:center;
+  z-index:50;
+  background:rgba(0,0,0,.6)
+}
+#boss img{
+  width:60vw;max-width:420px;
+  border-radius:50%;
+}
+</style>
 </head>
+
 <body>
 <div id="app">
-  <!-- IMPORTANT: these 4 images must be in the repo ROOT -->
-  <img id="bgImg" src="./bg.png" alt="bg" draggable="false"/>
-  <img id="table" src="./table.png" alt="table" draggable="false"/>
 
-  <div id="hud">
-    <div class="pill">Score: <span id="score">0</span></div>
-  </div>
+<img id="bg" src="./bg.png">
+<img id="table" src="./table.png">
 
-  <div id="overlay">
-    <button id="play" type="button" disabled>Loading…</button>
-    <div id="status">Loading images…<small>Files required in repo root: bg.png, table.png, good.png, bad.png</small></div>
-  </div>
+<div id="hud">Score: <span id="score">0</span></div>
+
+<div id="overlay">
+  <button id="play">Play</button>
+  <div id="msg">Hit BAD for points. Avoid Tiga 😈</div>
+</div>
+
+<div id="boss">
+  <img src="./bad.png">
+</div>
+
+<div id="hammer"></div>
+
 </div>
 
 <script>
 (() => {
-  // ===== FILES (repo root) =====
-  const BG_SRC    = "./bg.png";
-  const TABLE_SRC = "./table.png";
-  const GOOD_SRC  = "./good.png"; // hitting GOOD => GAME OVER (instant)
-  const BAD_SRC   = "./bad.png";  // hitting BAD  => +1 point
 
-  // ===== GAME FEEL =====
-  const visibleMs = 950;     // how long a target stays up
-  const spawnMin  = 850;     // min time between spawns
-  const spawnMax  = 1400;    // max time between spawns
-  const goodChance = 0.25;   // chance the GOOD appears
+const GOOD = "./good.png";
+const BAD  = "./bad.png";
 
-  // Hole centers in TABLE coordinates (x: left->right, y: bottom->top)
-  const holes = [
-    {x:.20,y:.63},{x:.50,y:.64},{x:.80,y:.63},
-    {x:.20,y:.40},{x:.50,y:.40},{x:.80,y:.40}
-  ];
+const holes=[
+  {x:.2,y:.62},{x:.5,y:.63},{x:.8,y:.62},
+  {x:.2,y:.4},{x:.5,y:.4},{x:.8,y:.4}
+];
 
-  // ===== STATE =====
-  let score = 0;
-  let running = false;
-  let active = null;         // { holeEl, targetEl, isGood }
-  let missTimer = null;
-  let spawnTimer = null;
+let score=0;
+let running=false;
+let active=null;
+let spawnDelay=1200;
+let visibleTime=900;
+let fakeChance=0.25;
 
-  // ===== DOM =====
-  const table   = document.getElementById("table");
-  const scoreEl = document.getElementById("score");
-  const hud     = document.getElementById("hud");
-  const overlay = document.getElementById("overlay");
-  const playBtn = document.getElementById("play");
-  const status  = document.getElementById("status");
+const table=document.getElementById("table");
+const hud=document.getElementById("hud");
+const scoreEl=document.getElementById("score");
+const overlay=document.getElementById("overlay");
+const boss=document.getElementById("boss");
+const hammer=document.getElementById("hammer");
 
-  // Avoid iOS gesture/scroll stealing taps
-  document.addEventListener("gesturestart", e => e.preventDefault());
-  document.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
+/* sounds (web audio – no files needed) */
+const ctx=new AudioContext();
+function sound(freq){
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  o.frequency.value=freq;
+  o.connect(g);g.connect(ctx.destination);
+  g.gain.setValueAtTime(.2,ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.3);
+  o.start();o.stop(ctx.currentTime+.3);
+}
 
-  // ===== HELPERS =====
-  function updateHUD(){
-    scoreEl.textContent = String(score);
-  }
+/* hammer follow */
+document.addEventListener("pointerdown",e=>{
+  hammer.style.left=e.clientX+"px";
+  hammer.style.top=e.clientY+"px";
+  hammer.style.display="block";
+});
+document.addEventListener("pointerup",()=>hammer.style.display="none");
 
-  function clearTimers(){
-    if(missTimer){ clearTimeout(missTimer); missTimer = null; }
-    if(spawnTimer){ clearTimeout(spawnTimer); spawnTimer = null; }
-  }
+function gameOver(){
+  running=false;
+  overlay.style.display="flex";
+  table.style.opacity=0;
+  hud.style.display="none";
+}
 
-  function cleanupActive(){
-    if(!active) return;
-    active.targetEl.classList.remove("show");
-    const h = active.holeEl;
-    setTimeout(() => h.remove(), 140);
-    active = null;
-  }
+function bossMode(){
+  boss.style.display="flex";
+  let hits=0;
+  sound(120);
+  const end=Date.now()+3000;
 
-  function endGame(reasonText){
-    running = false;
-    clearTimers();
-    cleanupActive();
-
-    table.style.opacity = 0;
-    hud.style.display = "none";
-    overlay.style.display = "flex";
-    playBtn.disabled = false;
-    playBtn.textContent = "Play";
-    status.innerHTML = (reasonText || "Game over.") + "<small>Tap Play to restart.</small>";
-
-    // Alert for clarity (you can remove later)
-    alert("Game Over");
-  }
-
-  function holePixel(i){
-    const r = table.getBoundingClientRect();
-    return {
-      x: r.left + holes[i].x * r.width,
-      y: r.top  + (1 - holes[i].y) * r.height
-    };
-  }
-
-  function spawn(){
-    if(!running) return;
-
-    // If a target is still active when the next spawn is scheduled, just despawn it (NO game over)
-    if(active){
-      cleanupActive();
-    }
-
-    const r = table.getBoundingClientRect();
-    // Guard: wait until table has a real layout size
-    if(r.width < 60 || r.height < 60){
-      spawnTimer = setTimeout(spawn, 150);
-      return;
-    }
-
-    const idx = Math.floor(Math.random() * holes.length);
-    const isGood = Math.random() < goodChance;
-    const p = holePixel(idx);
-
-    const holeEl = document.createElement("div");
-    holeEl.className = "hole";
-    holeEl.style.left = (p.x - 48) + "px";
-    holeEl.style.top  = (p.y - 48) + "px";
-
-    const targetEl = document.createElement("div");
-    targetEl.className = "target";
-    targetEl.innerHTML = '<div class="ring"></div><img src="' + (isGood ? GOOD_SRC : BAD_SRC) + '" />';
-
-    const onTap = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if(!running || !active) return;
-
-      clearTimeout(missTimer);
-      missTimer = null;
-
-      if(active.isGood){
-        // ✅ YOUR RULE: ONLY lose if you hit GOOD
-        endGame("You hit the GOOD one 😬");
-        return;
-      }
-
-      // ✅ YOUR RULE: hit BAD => +1 point
-      score += 1;
-      updateHUD();
-      cleanupActive();
-    };
-
-    // iPhone-safe touch handlers
-    targetEl.addEventListener("touchstart", onTap, {passive:false});
-    targetEl.addEventListener("touchend", onTap, {passive:false});
-    targetEl.addEventListener("pointerdown", onTap);
-    targetEl.addEventListener("click", onTap);
-
-    holeEl.appendChild(targetEl);
-    document.body.appendChild(holeEl);
-
-    active = { holeEl, targetEl, isGood };
-
-    requestAnimationFrame(() => targetEl.classList.add("show"));
-
-    // If you don't tap in time: just remove it (NO game over)
-    missTimer = setTimeout(() => {
-      cleanupActive();
-    }, visibleMs);
-
-    // Schedule next spawn
-    const delay = Math.floor(spawnMin + Math.random() * (spawnMax - spawnMin));
-    spawnTimer = setTimeout(spawn, delay);
-  }
-
-  function startGame(){
-    score = 0;
-    running = true;
-
-    clearTimers();
-    cleanupActive();
-
-    updateHUD();
-    hud.style.display = "flex";
-    table.style.opacity = 1;
-    overlay.style.display = "none";
-
-    // Delay to stabilize layout
-    setTimeout(spawn, 220);
-  }
-
-  // ===== PRELOAD (prevents broken icons, enables Play only when ready) =====
-  const assets = [
-    {name:"bg.png",    src:BG_SRC},
-    {name:"table.png", src:TABLE_SRC},
-    {name:"good.png",  src:GOOD_SRC},
-    {name:"bad.png",   src:BAD_SRC},
-  ];
-
-  function preloadAll(){
-    let done = 0;
-    const failed = [];
-    return new Promise((resolve) => {
-      assets.forEach(a => {
-        const img = new Image();
-        img.onload = () => { done++; if(done + failed.length === assets.length) resolve({failed}); };
-        img.onerror = () => { failed.push(a.name); if(done + failed.length === assets.length) resolve({failed}); };
-        img.src = a.src + "?v=" + Date.now(); // cache-bust GitHub Pages
-      });
-    });
-  }
-
-  preloadAll().then(({failed}) => {
-    if(failed.length){
-      playBtn.disabled = true;
-      playBtn.textContent = "Fix files";
-      status.innerHTML =
-        "Images failed to load:<br><b>" + failed.join(", ") + "</b>" +
-        "<small>Confirm these exact file names exist in repo root.</small>";
-      return;
-    }
-    playBtn.disabled = false;
-    playBtn.textContent = "Play";
-    status.innerHTML = "Ready.<small>Hit BAD for points. If you hit GOOD: instant game over.</small>";
-  });
-
-  // Start: button + overlay tap
-  const startTap = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if(!playBtn.disabled) startGame();
+  const tap=()=>{
+    hits++;score++;scoreEl.textContent=score;
+    sound(400);
   };
-  playBtn.addEventListener("click", startTap);
-  playBtn.addEventListener("pointerdown", startTap);
-  playBtn.addEventListener("touchend", startTap, {passive:false});
-  overlay.addEventListener("click", startTap);
-  overlay.addEventListener("pointerdown", startTap);
-  overlay.addEventListener("touchend", startTap, {passive:false});
 
-  window.addEventListener("resize", () => { if(active) cleanupActive(); });
+  boss.onclick=tap;
+
+  const interval=setInterval(()=>{
+    if(Date.now()>end){
+      clearInterval(interval);
+      boss.style.display="none";
+      boss.onclick=null;
+      spawnDelay=900;
+      visibleTime=700;
+      loop();
+    }
+  },50);
+}
+
+function spawn(){
+  if(!running) return;
+  if(active) active.remove();
+
+  const r=table.getBoundingClientRect();
+  const h=holes[Math.floor(Math.random()*holes.length)];
+  const hole=document.createElement("div");
+  hole.className="hole";
+  hole.style.left=(r.left+h.x*r.width-48)+"px";
+  hole.style.top=(r.top+(1-h.y)*r.height-48)+"px";
+
+  const isFake=Math.random()<fakeChance;
+  const isGood=isFake || Math.random()<.25;
+
+  const t=document.createElement("div");
+  t.className="target";
+  t.innerHTML=`<img src="${isGood?GOOD:BAD}">`;
+
+  t.onclick=e=>{
+    e.stopPropagation();
+    if(isGood){
+      sound(80);
+      alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
+      gameOver();
+    }else{
+      score++;
+      sound(600);
+      scoreEl.textContent=score;
+      if(score===5){ bossMode(); return; }
+      if(score>5){
+        spawnDelay=Math.max(600,spawnDelay-60);
+        visibleTime=Math.max(450,visibleTime-40);
+      }
+      t.remove();
+    }
+  };
+
+  hole.appendChild(t);
+  document.body.appendChild(hole);
+  active=hole;
+
+  requestAnimationFrame(()=>t.classList.add("show"));
+  setTimeout(()=>{ if(active===hole){hole.remove();} },visibleTime);
+}
+
+function loop(){
+  if(!running) return;
+  spawn();
+  setTimeout(loop,spawnDelay);
+}
+
+document.getElementById("play").onclick=()=>{
+  score=0;scoreEl.textContent=0;
+  spawnDelay=1400;visibleTime=1000;
+  running=true;
+  overlay.style.display="none";
+  table.style.opacity=1;
+  hud.style.display="block";
+  setTimeout(loop,800);
+};
 
 })();
 </script>
