@@ -16,108 +16,82 @@ body{touch-action:manipulation}
 #app{position:relative;width:100%;height:100%;overflow:hidden}
 
 /* background */
-#bg{
-  position:absolute;inset:0;
-  width:100%;height:100%;
-  object-fit:cover;z-index:0
-}
+#bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 
 /* table */
 #table{
   position:absolute;left:50%;top:56%;
   transform:translate(-50%,-50%);
   width:min(94vw,900px);
-  opacity:0;transition:.3s;
-  z-index:1
+  opacity:0;transition:.3s
 }
 
-/* SCORE: bigger + positioned above the table */
+/* SCORE – big & visible */
 #hud{
-  position:absolute;left:50%;
+  position:absolute;left:50%;top:8%;
   transform:translateX(-50%);
-  top:10%;
   background:#00c853;color:#fff;
-  padding:14px 20px;border-radius:16px;
-  font-weight:1000;font-size:22px;
+  padding:14px 22px;border-radius:18px;
+  font-size:26px;font-weight:900;
   display:none;z-index:10;
-  box-shadow:0 10px 26px rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 10px 26px rgba(0,0,0,.4)
 }
 
-/* overlay */
+/* START OVERLAY */
 #overlay{
   position:absolute;inset:0;
   display:flex;flex-direction:column;
   justify-content:center;align-items:center;
-  gap:12px;z-index:20;
-  background:rgba(0,0,0,.45)
+  gap:12px;background:rgba(0,0,0,.45);z-index:20
 }
 #play{
   background:#00c853;color:#fff;
   border:none;border-radius:18px;
-  padding:18px 40px;
-  font-size:22px;font-weight:900
+  padding:18px 40px;font-size:22px;font-weight:900
 }
 #msg{color:#fff;font-weight:800;text-align:center}
 
-/* holes & targets */
-.hole{
-  position:absolute;width:96px;height:96px;
-  border-radius:50%;z-index:5
-}
+/* holes */
+.hole{position:absolute;width:96px;height:96px}
 .target{
-  position:absolute;left:0;right:0;
-  margin:auto;bottom:-40px;
-  width:96px;height:96px;
-  border-radius:50%;
-  background:#111;
-  display:flex;align-items:center;justify-content:center;
-  opacity:0;transform:scale(.9);
-  transition:.15s;
+  position:absolute;left:0;right:0;margin:auto;bottom:-40px;
+  width:96px;height:96px;border-radius:50%;
+  background:#111;display:flex;align-items:center;justify-content:center;
+  opacity:0;transform:scale(.9);transition:.15s
 }
 .target.show{opacity:1;transform:scale(1);bottom:0}
 .target img{width:92px;height:92px;border-radius:50%}
 
 /* hammer */
 #hammer{
-  position:absolute;
-  width:80px;height:80px;
+  position:absolute;width:80px;height:80px;
   background:url("https://upload.wikimedia.org/wikipedia/commons/3/3a/Hammer_icon.svg") center/contain no-repeat;
-  pointer-events:none;
-  transform:translate(-50%,-50%) rotate(-45deg);
-  display:none;z-index:999
+  pointer-events:none;display:none;z-index:999;
+  transform:translate(-50%,-50%) rotate(-45deg)
 }
 
-/* boss overlay */
-#boss{
+/* MERCY BOSS (LEVEL 30) */
+#mercy{
   position:absolute;inset:0;
-  display:none;align-items:center;justify-content:center;
-  z-index:50;
-  background:rgba(0,0,0,.65);
-  overflow:hidden;
+  display:none;z-index:50;
+  background:rgba(0,0,0,.75)
 }
-#bossInner{
-  position:relative;
-  will-change:transform,left;
-  display:flex;align-items:center;justify-content:center;
+#mercyCenter{
+  position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;color:#fff
 }
-#boss img{
-  width:min(78vw,560px);
-  border-radius:0;            /* NOT circular */
-  box-shadow:0 18px 60px rgba(0,0,0,.55);
+#mercyCenter img{
+  width:min(70vw,420px)
 }
-
-/* shake the whole screen on boss hit */
-.shake{
-  animation:shake .15s;
+#mercyText{
+  margin-top:12px;font-size:22px;font-weight:900
 }
-@keyframes shake{
-  0%{transform:translate(0)}
-  25%{transform:translate(-10px,7px)}
-  50%{transform:translate(9px,-7px)}
-  75%{transform:translate(-7px,7px)}
-  100%{transform:translate(0)}
+#smallRitos{
+  position:absolute;width:70px;height:70px;
+  display:none;cursor:pointer
 }
+#smallRitos img{width:100%;height:100%;border-radius:50%}
 </style>
 </head>
 
@@ -134,217 +108,45 @@ body{touch-action:manipulation}
   <div id="msg">Hit Ritos for points. Avoid Tiga 😈</div>
 </div>
 
-<div id="boss">
-  <div id="bossInner">
-    <img id="bossImg" src="./boss.png" alt="boss">
+<!-- LEVEL 30 MERCY BOSS -->
+<div id="mercy">
+  <div id="mercyCenter">
+    <img src="./mercy.png">
+    <div id="mercyText">Don’t hit me… 🥺</div>
+  </div>
+  <div id="smallRitos">
+    <img src="./bad.png">
   </div>
 </div>
 
 <div id="hammer"></div>
 
-</div>
-
 <script>
 (() => {
-const GOOD="./good.png";
-const BAD ="./bad.png";
 
-/* holes */
+const GOOD="./good.png"; // Tiga
+const BAD ="./bad.png";  // Ritos
+
 const holes=[
   {x:.2,y:.62},{x:.5,y:.63},{x:.8,y:.62},
   {x:.2,y:.4},{x:.5,y:.4},{x:.8,y:.4}
 ];
 
-/* pacing */
-let spawnDelay=1500;   // starts slower
-let visibleTime=1100;
-let fakeChance=.25;
-
 let score=0;
 let running=false;
 let active=null;
 let loopTimer=null;
-let bossActive=false;
 
 const table=document.getElementById("table");
 const hud=document.getElementById("hud");
 const scoreEl=document.getElementById("score");
 const overlay=document.getElementById("overlay");
-const boss=document.getElementById("boss");
-const bossInner=document.getElementById("bossInner");
+const mercy=document.getElementById("mercy");
+const smallRitos=document.getElementById("smallRitos");
 const hammer=document.getElementById("hammer");
 
-/* sound memes */
-const ctx=new (window.AudioContext||window.webkitAudioContext)();
-function beep(freq){
-  const o=ctx.createOscillator(), g=ctx.createGain();
-  o.frequency.value=freq;
-  o.connect(g); g.connect(ctx.destination);
-  g.gain.setValueAtTime(.2,ctx.currentTime);
-  g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25);
-  o.start(); o.stop(ctx.currentTime+.25);
-}
-
-/* hammer on tap */
+/* hammer */
 document.addEventListener("pointerdown",e=>{
   hammer.style.left=e.clientX+"px";
   hammer.style.top=e.clientY+"px";
-  hammer.style.display="block";
-});
-document.addEventListener("pointerup",()=>hammer.style.display="none");
-
-/* cleanup */
-function stopLoop(){
-  if(loopTimer){ clearTimeout(loopTimer); loopTimer=null; }
-}
-function removeActive(){
-  if(active){ active.remove(); active=null; }
-}
-function gameOver(){
-  running=false;
-  bossActive=false;
-  stopLoop();
-  removeActive();
-  boss.style.display="none";
-  overlay.style.display="flex";
-  table.style.opacity=0;
-  hud.style.display="none";
-}
-
-/* boss movement left-right */
-function bossMode(){
-  bossActive=true;
-  boss.style.display="flex";
-  removeActive();
-  stopLoop();
-
-  const start=Date.now();
-  const duration=3000;
-
-  // movement amplitude
-  const amp= Math.min(window.innerWidth * 0.22, 160);
-
-  // boss hit
-  const onBossHit=()=>{
-    score++;
-    scoreEl.textContent=score;
-    beep(420);
-    // shake the whole overlay container
-    boss.classList.add("shake");
-    setTimeout(()=>boss.classList.remove("shake"),150);
-  };
-
-  boss.onclick=onBossHit;
-
-  // move left-right during boss
-  const moveInterval=setInterval(()=>{
-    const t=(Date.now()-start)/1000;
-    const x=Math.sin(t*6.5)*amp; // speed
-    bossInner.style.transform=`translateX(${x}px)`;
-    if(Date.now()-start >= duration){
-      clearInterval(moveInterval);
-      boss.onclick=null;
-      boss.style.display="none";
-      bossInner.style.transform="translateX(0)";
-      bossActive=false;
-
-      // IMPORTANT: SLOW DOWN after boss (your request)
-      spawnDelay = 1200;     // not too fast
-      visibleTime = 900;
-
-      // Progressive speed-up (gentle) after 5+ points
-      loop();
-    }
-  }, 16);
-}
-
-/* spawn */
-function spawn(){
-  if(!running || bossActive) return;
-
-  removeActive();
-
-  const r=table.getBoundingClientRect();
-  const h=holes[Math.floor(Math.random()*holes.length)];
-
-  const hole=document.createElement("div");
-  hole.className="hole";
-  hole.style.left=(r.left+h.x*r.width-48)+"px";
-  hole.style.top=(r.top+(1-h.y)*r.height-48)+"px";
-
-  const isFake=Math.random()<fakeChance;
-  const isGood=isFake||Math.random()<.25;
-
-  const t=document.createElement("div");
-  t.className="target";
-  t.innerHTML=`<img src="${isGood?GOOD:BAD}">`;
-
-  t.onclick=e=>{
-    e.stopPropagation();
-    if(isGood){
-      beep(120);
-      alert("You hit Tiga... 🥺\nTiga is very sad now....😭");
-      gameOver();
-    }else{
-      score++;
-      beep(620);
-      scoreEl.textContent=score;
-
-      // Boss at 5
-      if(score===5){
-        bossMode();
-        return;
-      }
-
-      // Gentle speed-up AFTER 5 points (not ultra fast)
-      if(score>5){
-        spawnDelay = Math.max(900, spawnDelay - 40);
-        visibleTime = Math.max(650, visibleTime - 25);
-      }
-
-      removeActive();
-    }
-  };
-
-  hole.appendChild(t);
-  document.body.appendChild(hole);
-  active=hole;
-
-  requestAnimationFrame(()=>t.classList.add("show"));
-
-  setTimeout(()=>{
-    if(active===hole) removeActive();
-  }, visibleTime);
-}
-
-/* main loop */
-function loop(){
-  if(!running || bossActive) return;
-  spawn();
-  loopTimer=setTimeout(loop, spawnDelay);
-}
-
-/* start */
-document.getElementById("play").onclick=()=>{
-  score=0;
-  scoreEl.textContent=0;
-
-  // start slow
-  spawnDelay=1600;
-  visibleTime=1200;
-
-  running=true;
-  bossActive=false;
-
-  overlay.style.display="none";
-  table.style.opacity=1;
-  hud.style.display="block";
-
-  // slower start feel
-  setTimeout(loop, 1200);
-};
-
-})();
-</script>
-</body>
-</html>
+  hammer.style.display
