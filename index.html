@@ -9,7 +9,7 @@
     body{touch-action:manipulation}
     #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
 
-    /* Background: no stretch, crop instead */
+    /* Background: crop, don't stretch */
     #bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;user-select:none;-webkit-user-drag:none}
 
     /* Table centered */
@@ -28,7 +28,7 @@
     }
 
     /* Start overlay */
-    #startOverlay{
+    #overlay{
       position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;
       align-items:center;justify-content:center;z-index:20;background:rgba(0,0,0,0.06)
     }
@@ -37,7 +37,7 @@
       font-size:22px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.35)
     }
     #play:active{transform:translateY(1px)}
-    #status{color:rgba(255,255,255,.9);font-weight:900;text-align:center;max-width:460px;line-height:1.25}
+    #status{color:rgba(255,255,255,.92);font-weight:900;text-align:center;max-width:520px;line-height:1.25}
     #status small{display:block;color:rgba(255,255,255,.65);font-weight:800;margin-top:6px}
 
     /* Targets */
@@ -57,122 +57,91 @@
 </head>
 <body>
 <div id="app">
-  <!-- IMPORTANT: these files must be in the repo ROOT (as in your screenshot) -->
+  <!-- IMPORTANT: these 4 images must be in the repo ROOT -->
   <img id="bgImg" src="./bg.png" alt="bg" draggable="false"/>
   <img id="table" src="./table.png" alt="table" draggable="false"/>
 
   <div id="hud">
     <div class="pill">Score: <span id="score">0</span></div>
-    <div class="pill">Lives: <span id="lives">●●●</span></div>
   </div>
 
-  <div id="startOverlay">
+  <div id="overlay">
     <button id="play" type="button" disabled>Loading…</button>
-    <div id="status">Loading images…<small>If this never finishes, your file names/paths don’t match.</small></div>
+    <div id="status">Loading images…<small>Files required in repo root: bg.png, table.png, good.png, bad.png</small></div>
   </div>
 </div>
 
 <script>
 (() => {
-  // ===== CONFIG =====
-  // Files in repo root:
+  // ===== FILES (repo root) =====
   const BG_SRC    = "./bg.png";
   const TABLE_SRC = "./table.png";
-  const GOOD_SRC  = "./good.png"; // GOOD = avoid (tap = -1 point)
-  const BAD_SRC   = "./bad.png";  // BAD = hit (tap = +1 point)
+  const GOOD_SRC  = "./good.png"; // hitting GOOD => GAME OVER (instant)
+  const BAD_SRC   = "./bad.png";  // hitting BAD  => +1 point
 
-  // Timing (slower + more playable on phone)
-  const visibleMs = 900;          // target stays up
-  const spawnMin  = 900;          // min gap before next spawn
-  const spawnMax  = 1400;         // max gap before next spawn
+  // ===== GAME FEEL =====
+  const visibleMs = 950;     // how long a target stays up
+  const spawnMin  = 850;     // min time between spawns
+  const spawnMax  = 1400;    // max time between spawns
+  const goodChance = 0.25;   // chance the GOOD appears
 
-  // Chance of GOOD target
-  const goodChance = 0.30;        // 30% good, 70% bad
-
-  // Hole centers (normalized in TABLE coordinates)
-  // (x,y) where x=0..1 left->right, y=0..1 bottom->top
+  // Hole centers in TABLE coordinates (x: left->right, y: bottom->top)
   const holes = [
     {x:.20,y:.63},{x:.50,y:.64},{x:.80,y:.63},
     {x:.20,y:.40},{x:.50,y:.40},{x:.80,y:.40}
   ];
 
   // ===== STATE =====
-  let score=0, lives=3, running=false;
-  let active=null;                // {hole, t, isGood}
-  let missTimer=null;
-  let spawnTimer=null;
+  let score = 0;
+  let running = false;
+  let active = null;         // { holeEl, targetEl, isGood }
+  let missTimer = null;
+  let spawnTimer = null;
 
   // ===== DOM =====
   const table   = document.getElementById("table");
   const scoreEl = document.getElementById("score");
-  const livesEl = document.getElementById("lives");
   const hud     = document.getElementById("hud");
-  const overlay = document.getElementById("startOverlay");
+  const overlay = document.getElementById("overlay");
   const playBtn = document.getElementById("play");
   const status  = document.getElementById("status");
 
-  // Prevent iOS gesture/scroll stealing taps
+  // Avoid iOS gesture/scroll stealing taps
   document.addEventListener("gesturestart", e => e.preventDefault());
   document.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
 
   // ===== HELPERS =====
-  function clampScore(){ if(score < 0) score = 0; }
   function updateHUD(){
-    clampScore();
-    scoreEl.textContent = score;
-    livesEl.textContent = "●".repeat(lives);
+    scoreEl.textContent = String(score);
   }
 
   function clearTimers(){
-    if(missTimer){ clearTimeout(missTimer); missTimer=null; }
-    if(spawnTimer){ clearTimeout(spawnTimer); spawnTimer=null; }
+    if(missTimer){ clearTimeout(missTimer); missTimer = null; }
+    if(spawnTimer){ clearTimeout(spawnTimer); spawnTimer = null; }
   }
 
-  function cleanup(){
+  function cleanupActive(){
     if(!active) return;
-    active.t.classList.remove("show");
-    const holeEl = active.hole;
-    setTimeout(()=>holeEl.remove(), 140);
+    active.targetEl.classList.remove("show");
+    const h = active.holeEl;
+    setTimeout(() => h.remove(), 140);
     active = null;
   }
 
-  function endGame(){
+  function endGame(reasonText){
     running = false;
     clearTimers();
-    cleanup();
+    cleanupActive();
+
     table.style.opacity = 0;
     hud.style.display = "none";
     overlay.style.display = "flex";
     playBtn.disabled = false;
     playBtn.textContent = "Play";
-    status.innerHTML = "Game over.<small>Tap Play to restart.</small>";
+    status.innerHTML = (reasonText || "Game over.") + "<small>Tap Play to restart.</small>";
+
+    // Alert for clarity (you can remove later)
     alert("Game Over");
-  }
-
-  function miss(){
-    // ONLY miss if a target is actually active
-    if(!running || !active) return;
-
-    clearTimeout(missTimer);
-    missTimer = null;
-
-    lives--;
-    cleanup();
-    updateHUD();
-    if(lives <= 0) endGame();
-  }
-
-  function hit(){
-    if(!running || !active) return;
-
-    clearTimeout(missTimer);
-    missTimer = null;
-
-    // Your rule: GOOD = -1 point, BAD = +1 point
-    score += active.isGood ? -1 : 1;
-
-    cleanup();
-    updateHUD();
   }
 
   function holePixel(i){
@@ -186,46 +155,68 @@
   function spawn(){
     if(!running) return;
 
-    // If previous target is still up when next spawn happens -> miss
-    if(active) miss();
-    if(!running) return;
+    // If a target is still active when the next spawn is scheduled, just despawn it (NO game over)
+    if(active){
+      cleanupActive();
+    }
 
     const r = table.getBoundingClientRect();
-    // Guard: wait until table has real size (prevents instant game-over)
-    if(r.width < 50 || r.height < 50){
+    // Guard: wait until table has a real layout size
+    if(r.width < 60 || r.height < 60){
       spawnTimer = setTimeout(spawn, 150);
       return;
     }
 
-    const i = Math.floor(Math.random() * holes.length);
+    const idx = Math.floor(Math.random() * holes.length);
     const isGood = Math.random() < goodChance;
-    const p = holePixel(i);
+    const p = holePixel(idx);
 
-    const hole = document.createElement("div");
-    hole.className = "hole";
-    hole.style.left = (p.x - 48) + "px";
-    hole.style.top  = (p.y - 48) + "px";
+    const holeEl = document.createElement("div");
+    holeEl.className = "hole";
+    holeEl.style.left = (p.x - 48) + "px";
+    holeEl.style.top  = (p.y - 48) + "px";
 
-    const t = document.createElement("div");
-    t.className = "target";
-    t.innerHTML = '<div class="ring"></div><img src="' + (isGood ? GOOD_SRC : BAD_SRC) + '" />';
+    const targetEl = document.createElement("div");
+    targetEl.className = "target";
+    targetEl.innerHTML = '<div class="ring"></div><img src="' + (isGood ? GOOD_SRC : BAD_SRC) + '" />';
 
-    // Robust tap handling for iPhone
-    const tap = (e)=>{ e.preventDefault(); e.stopPropagation(); hit(); };
-    t.addEventListener("touchstart", tap, {passive:false});
-    t.addEventListener("touchend", tap, {passive:false});
-    t.addEventListener("pointerdown", tap);
-    t.addEventListener("click", tap);
+    const onTap = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if(!running || !active) return;
 
-    hole.appendChild(t);
-    document.body.appendChild(hole);
+      clearTimeout(missTimer);
+      missTimer = null;
 
-    active = {hole, t, isGood};
+      if(active.isGood){
+        // ✅ YOUR RULE: ONLY lose if you hit GOOD
+        endGame("You hit the GOOD one 😬");
+        return;
+      }
 
-    requestAnimationFrame(()=>t.classList.add("show"));
+      // ✅ YOUR RULE: hit BAD => +1 point
+      score += 1;
+      updateHUD();
+      cleanupActive();
+    };
 
-    // Auto-miss after visible window
-    missTimer = setTimeout(()=>{ miss(); }, visibleMs);
+    // iPhone-safe touch handlers
+    targetEl.addEventListener("touchstart", onTap, {passive:false});
+    targetEl.addEventListener("touchend", onTap, {passive:false});
+    targetEl.addEventListener("pointerdown", onTap);
+    targetEl.addEventListener("click", onTap);
+
+    holeEl.appendChild(targetEl);
+    document.body.appendChild(holeEl);
+
+    active = { holeEl, targetEl, isGood };
+
+    requestAnimationFrame(() => targetEl.classList.add("show"));
+
+    // If you don't tap in time: just remove it (NO game over)
+    missTimer = setTimeout(() => {
+      cleanupActive();
+    }, visibleMs);
 
     // Schedule next spawn
     const delay = Math.floor(spawnMin + Math.random() * (spawnMax - spawnMin));
@@ -233,22 +224,22 @@
   }
 
   function startGame(){
-    score = 0; lives = 3;
+    score = 0;
     running = true;
 
     clearTimers();
-    cleanup();
-    updateHUD();
+    cleanupActive();
 
+    updateHUD();
     hud.style.display = "flex";
     table.style.opacity = 1;
     overlay.style.display = "none";
 
-    // Delay so layout stabilizes
+    // Delay to stabilize layout
     setTimeout(spawn, 220);
   }
 
-  // ===== PRELOAD (ensures no broken icons + prevents instant game-over) =====
+  // ===== PRELOAD (prevents broken icons, enables Play only when ready) =====
   const assets = [
     {name:"bg.png",    src:BG_SRC},
     {name:"table.png", src:TABLE_SRC},
@@ -258,14 +249,13 @@
 
   function preloadAll(){
     let done = 0;
-    let failed = [];
+    const failed = [];
     return new Promise((resolve) => {
       assets.forEach(a => {
         const img = new Image();
         img.onload = () => { done++; if(done + failed.length === assets.length) resolve({failed}); };
         img.onerror = () => { failed.push(a.name); if(done + failed.length === assets.length) resolve({failed}); };
-        // Cache-bust GitHub Pages
-        img.src = a.src + "?v=" + Date.now();
+        img.src = a.src + "?v=" + Date.now(); // cache-bust GitHub Pages
       });
     });
   }
@@ -276,16 +266,20 @@
       playBtn.textContent = "Fix files";
       status.innerHTML =
         "Images failed to load:<br><b>" + failed.join(", ") + "</b>" +
-        "<small>Check file names in your repo root: bg.png, table.png, good.png, bad.png</small>";
+        "<small>Confirm these exact file names exist in repo root.</small>";
       return;
     }
     playBtn.disabled = false;
     playBtn.textContent = "Play";
-    status.innerHTML = "Ready.<small>Tap Play to start.</small>";
+    status.innerHTML = "Ready.<small>Hit BAD for points. If you hit GOOD: instant game over.</small>";
   });
 
   // Start: button + overlay tap
-  const startTap = (e)=>{ e.preventDefault(); e.stopPropagation(); if(!playBtn.disabled) startGame(); };
+  const startTap = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if(!playBtn.disabled) startGame();
+  };
   playBtn.addEventListener("click", startTap);
   playBtn.addEventListener("pointerdown", startTap);
   playBtn.addEventListener("touchend", startTap, {passive:false});
@@ -293,8 +287,7 @@
   overlay.addEventListener("pointerdown", startTap);
   overlay.addEventListener("touchend", startTap, {passive:false});
 
-  // If device rotates/resizes, remove active target so it doesn't drift
-  window.addEventListener("resize", ()=>{ if(active) cleanup(); });
+  window.addEventListener("resize", () => { if(active) cleanupActive(); });
 
 })();
 </script>
